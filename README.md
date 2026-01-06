@@ -23,9 +23,13 @@ Currently, coordinating pickleball games involves:
 
 ## Tech Stack
 
-- **Frontend**: React + TypeScript + Vite
+- **Frontend**: React + TypeScript + Vite (mobile-first)
 - **Backend**: Supabase (PostgreSQL + Auth + Storage + Edge Functions)
 - **ORM**: Drizzle ORM (for type-safe database queries)
+- **Styling**: Tailwind CSS (mobile-first responsive)
+- **Auth**: Supabase Magic Links (passwordless)
+- **Email**: Resend
+- **SMS**: Twilio
 - **Deployment**: Vercel
 - **Linting**: ESLint
 
@@ -55,6 +59,7 @@ Currently, coordinating pickleball games involves:
 
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Detailed technical architecture, database schema, workflows
 - **[SIMPLIFICATIONS.md](./SIMPLIFICATIONS.md)** - MVP simplification recommendations
+- **[CONSIDERATIONS.md](./CONSIDERATIONS.md)** - Mobile-first, notifications, AI, auth decisions
 
 ## Key Decisions
 

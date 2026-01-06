@@ -4,9 +4,14 @@
 A self-service web application to coordinate pickleball games among friends and family. The goal is to shift coordination overhead from the admin to individual players through an opt-in model, making it easy for players to see available sessions and commit themselves.
 
 ## Tech Stack
-- **Frontend**: React + TypeScript + Vite
+- **Frontend**: React + TypeScript + Vite (mobile-first)
 - **Backend**: Supabase (PostgreSQL + Auth + Storage + Edge Functions)
+- **ORM**: Drizzle ORM (for type-safe database queries)
 - **Deployment**: Vercel
+- **Styling**: Tailwind CSS (mobile-first responsive)
+- **Auth**: Supabase Magic Links (passwordless)
+- **Email**: Resend
+- **SMS**: Twilio
 - **Linting**: ESLint
 
 ## Core Concepts
@@ -341,20 +346,28 @@ created_at: timestamp
 5. **Cost calculation**: Updates dynamically as more players commit (cost per player decreases)
 6. **No cash handling** - all payments digital (Venmo required)
 
-### 5. Registration Flow (One-Time Use Links)
+### 5. Registration Flow (One-Time Use Links + Magic Links)
 **Flow:**
 1. Admin generates **one-time use registration link** for a pool
    - Link contains unique token
    - Token expires after use (or after 30 days, whichever comes first)
 2. New player visits link
 3. Player fills form:
+   - Email (for magic link auth)
    - Name
    - Phone number
    - Venmo account (required - no cash payments)
    - Notification preferences (Email, SMS, Both)
-4. Player is added to pool_players with is_active=true
-5. **Registration link is marked as used** (cannot be reused)
-6. Player receives confirmation and can immediately see active sessions
+4. System sends magic link to player's email
+5. Player clicks magic link (works on mobile)
+6. Player is authenticated and added to pool_players with is_active=true
+7. **Registration link is marked as used** (cannot be reused)
+8. Player receives confirmation and can immediately see active sessions
+
+**Auth for Returning Players:**
+- Players can log in via magic link using their email
+- No password needed (passwordless)
+- Works seamlessly on mobile
 
 ### 6. Cancellation & Replacement Flow (Self-Service)
 **Flow:**
@@ -589,7 +602,7 @@ src/
 
 ## Security Considerations
 
-1. **Authentication**: Supabase Auth (email/password for admin)
+1. **Authentication**: Supabase Magic Links (passwordless, simple for users)
 2. **Authorization**: RLS policies for data access
 3. **Registration Links**: Unique tokens per pool, time-limited
 4. **Payment Data**: Store minimal payment info, no sensitive financial data
