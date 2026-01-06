@@ -51,21 +51,34 @@ Currently, coordinating pickleball games involves:
 - **<24 hours before**: No refund unless replacement found
 - Protects admin from eating costs on last-minute cancellations
 
-## Architecture
+## Documentation
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture and workflows.
-
-## Simplifications
-
-See [SIMPLIFICATIONS.md](./SIMPLIFICATIONS.md) for potential simplifications to consider for MVP.
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Detailed technical architecture, database schema, workflows
+- **[SIMPLIFICATIONS.md](./SIMPLIFICATIONS.md)** - MVP simplification recommendations
 
 ## Key Decisions
 
-- **Payment**: Venmo only (digital, no cash handling)
-- **Cancellation**: >24h refund, <24h no refund unless replacement
-- **Notifications**: Service numbers (Twilio), not personal
-- **Court Booking**: Manual (only admin has membership)
-- **Cost**: $16/hr fixed, split among players
+### Payment
+- **Venmo only** (no cash, no Stripe initially)
+- Zero cost overhead
+- Automatic payment link generation
+- Manual reconciliation (Venmo has no API)
+- Consider Stripe later if doing 10+ sessions/month
+
+### Cancellation Policy
+- **>24 hours before**: Full refund
+- **<24 hours before**: No refund unless replacement found
+- Protects admin from eating costs on last-minute cancellations
+
+### Notifications
+- **SMS**: From Twilio service number (not your personal number)
+- **Email**: From `noreply@pickleballers.app`
+- Players see service names, not personal contact info
+
+### Other
+- **Court Booking**: Manual (only admin has CourtReserve membership)
+- **Cost**: $16/hr fixed, split among committed players
+- **Multi-admin**: Start with single admin per pool (can add later)
 
 ## Project Status
 
