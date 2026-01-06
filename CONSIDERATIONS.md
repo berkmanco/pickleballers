@@ -165,13 +165,15 @@
 
 - **Frontend**: React + TypeScript + Vite (mobile-first)
 - **Backend**: Supabase (PostgreSQL + Auth + Storage + Edge Functions)
-- **ORM**: Drizzle ORM
+- **Database**: Supabase JS Client (`@supabase/supabase-js`) - direct queries
 - **Deployment**: Vercel
 - **Styling**: Tailwind CSS (mobile-first)
 - **Auth**: Supabase Magic Links
 - **Email**: Resend
 - **SMS**: Twilio
 - **Linting**: ESLint
+
+**Note**: Using Supabase client directly (like drizzle project), not Drizzle ORM. Simpler and you're already familiar with the pattern.
 
 ---
 

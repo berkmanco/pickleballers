@@ -6,7 +6,7 @@ A self-service web application to coordinate pickleball games among friends and 
 ## Tech Stack
 - **Frontend**: React + TypeScript + Vite (mobile-first)
 - **Backend**: Supabase (PostgreSQL + Auth + Storage + Edge Functions)
-- **ORM**: Drizzle ORM (for type-safe database queries)
+- **Database Client**: Supabase JS Client (`@supabase/supabase-js`) - direct queries, no ORM
 - **Deployment**: Vercel
 - **Styling**: Tailwind CSS (mobile-first responsive)
 - **Auth**: Supabase Magic Links (passwordless)
@@ -552,13 +552,29 @@ src/
 │   ├── usePayments.ts
 │   └── useAuth.ts
 ├── lib/
-│   ├── supabase.ts
+│   ├── supabase.ts (Supabase client setup, like drizzle project)
 │   ├── types.ts
 │   └── utils.ts
 └── App.tsx
 ```
 
 ## API/Backend Structure
+
+### Database Queries (Supabase Client)
+- Use Supabase JS Client directly (`@supabase/supabase-js`)
+- Pattern: Create helper functions in `lib/supabase.ts` (like drizzle project)
+- Example:
+  ```typescript
+  export async function getSessions(poolId: string) {
+    const { data, error } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('pool_id', poolId)
+    if (error) throw error
+    return data
+  }
+  ```
+- No ORM needed - direct Supabase queries with type safety via TypeScript
 
 ### Supabase Edge Functions
 1. **send-notification**: Send email/SMS notifications

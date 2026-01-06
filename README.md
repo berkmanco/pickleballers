@@ -25,7 +25,7 @@ Currently, coordinating pickleball games involves:
 
 - **Frontend**: React + TypeScript + Vite (mobile-first)
 - **Backend**: Supabase (PostgreSQL + Auth + Storage + Edge Functions)
-- **ORM**: Drizzle ORM (for type-safe database queries)
+- **Database**: Supabase JS Client (direct queries, no ORM)
 - **Styling**: Tailwind CSS (mobile-first responsive)
 - **Auth**: Supabase Magic Links (passwordless)
 - **Email**: Resend
