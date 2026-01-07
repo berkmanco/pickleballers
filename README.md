@@ -56,9 +56,11 @@ Currently, coordinating pickleball games involves:
 
 ## Documentation
 
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Detailed technical architecture, database schema, workflows
-- **[SIMPLIFICATIONS.md](./SIMPLIFICATIONS.md)** - MVP simplification recommendations
-- **[CONSIDERATIONS.md](./CONSIDERATIONS.md)** - Mobile-first, notifications, AI, auth decisions
+- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - Detailed technical architecture, database schema, workflows
+- **[docs/SIMPLIFICATIONS.md](./docs/SIMPLIFICATIONS.md)** - MVP simplification recommendations
+- **[docs/CONSIDERATIONS.md](./docs/CONSIDERATIONS.md)** - Mobile-first, notifications, AI, auth decisions
+- **[docs/REAL_WORLD_EXAMPLES.md](./docs/REAL_WORLD_EXAMPLES.md)** - Real-world coordination patterns
+- **[docs/DATA_MODEL_PRESSURE_TEST.md](./docs/DATA_MODEL_PRESSURE_TEST.md)** - Data model testing
 
 ## Key Decisions
 
