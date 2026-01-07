@@ -16,6 +16,12 @@ export default function Navbar() {
             {user ? (
               <>
                 <Link
+                  to="/pools"
+                  className="text-sm sm:text-base text-gray-700 hover:text-gray-900 px-2 py-1 rounded hover:bg-gray-50"
+                >
+                  Pools
+                </Link>
+                <Link
                   to="/dashboard"
                   className="text-sm sm:text-base text-gray-700 hover:text-gray-900 px-2 py-1 rounded hover:bg-gray-50"
                 >

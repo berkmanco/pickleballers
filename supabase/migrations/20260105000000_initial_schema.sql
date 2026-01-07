@@ -1,23 +1,16 @@
 -- ============================================
--- Pickleballers Database Schema
+-- Initial Database Schema
 -- ============================================
--- REFERENCE DOCUMENT - Full schema snapshot
+-- This migration creates the complete database schema from scratch.
+-- All tables, types, functions, triggers, indexes, and RLS policies.
 -- 
--- This file shows the complete current state of the database.
--- It's kept in sync with migrations for documentation/reference.
--- 
--- For database changes, use migrations (supabase/migrations/*.sql)
--- Supabase CLI tracks migrations, not this file.
--- 
--- Key decisions:
--- - Admin always plays in sessions they create
--- - Admin fronts $9/court (no payment record for admin)
--- - Guest pool ($48/court) split among all guests
--- - Payment statuses: pending, paid, refunded, forgiven
+-- Note: RLS policies are already fixed (no recursion) based on lessons learned.
 -- ============================================
 
 -- Extensions
-create extension if not exists "uuid-ossp";
+-- Note: Supabase uses gen_random_uuid() (built-in PostgreSQL function) instead of uuid_generate_v4()
+-- pgcrypto is needed for gen_random_bytes() used in registration_links tokens
+create extension if not exists "pgcrypto";
 
 -- ============================================
 -- ENUMS
@@ -28,12 +21,24 @@ create type participant_status as enum ('committed', 'paid', 'maybe', 'out');
 create type payment_status as enum ('pending', 'paid', 'refunded', 'forgiven');
 
 -- ============================================
+-- FUNCTIONS (needed before tables)
+-- ============================================
+
+-- Generate registration token (needed for registration_links table default)
+create or replace function generate_registration_token()
+returns text as $$
+begin
+  return encode(gen_random_bytes(32), 'hex');
+end;
+$$ language plpgsql;
+
+-- ============================================
 -- TABLES
 -- ============================================
 
 -- Pools (Groups of players)
 create table pools (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
   owner_id uuid references auth.users(id) on delete set null,
@@ -44,7 +49,7 @@ create table pools (
 
 -- Pool Admins (junction table for multi-admin support - future)
 create table pool_admins (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   pool_id uuid references pools(id) on delete cascade not null,
   admin_id uuid references auth.users(id) on delete cascade not null,
   is_active boolean default true,
@@ -54,7 +59,7 @@ create table pool_admins (
 
 -- Players (people who play pickleball)
 create table players (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete set null unique,
   name text not null,
   phone text,
@@ -68,7 +73,7 @@ create table players (
 
 -- Pool Players (junction table: which players belong to which pools)
 create table pool_players (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   pool_id uuid references pools(id) on delete cascade not null,
   player_id uuid references players(id) on delete cascade not null,
   is_active boolean default true,
@@ -78,9 +83,9 @@ create table pool_players (
 
 -- Registration Links (one-time use tokens for joining pools)
 create table registration_links (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   pool_id uuid references pools(id) on delete cascade not null,
-  token text unique not null default encode(gen_random_bytes(32), 'hex'),
+  token text unique not null default generate_registration_token(),
   created_by uuid references auth.users(id) on delete set null,
   expires_at timestamptz default (now() + interval '30 days'),
   used_at timestamptz,
@@ -90,7 +95,7 @@ create table registration_links (
 
 -- Sessions (proposed game times)
 create table sessions (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   pool_id uuid references pools(id) on delete cascade not null,
   
   -- Date/time
@@ -131,7 +136,7 @@ create table sessions (
 
 -- Session Participants (who's in/out for each session)
 create table session_participants (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   session_id uuid references sessions(id) on delete cascade not null,
   player_id uuid references players(id) on delete cascade not null,
   
@@ -151,7 +156,7 @@ create table session_participants (
 
 -- Payments (track Venmo payments - guests only, not admin)
 create table payments (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   session_participant_id uuid references session_participants(id) on delete cascade not null,
   
   -- Amount
@@ -306,6 +311,21 @@ create trigger update_participant_status_timestamp
   before update on session_participants
   for each row execute function update_participant_status_changed();
 
+-- Auto-set owner_id from auth.uid() when creating a pool
+create or replace function set_pool_owner()
+returns trigger as $$
+begin
+  if new.owner_id is null then
+    new.owner_id = auth.uid();
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create trigger set_pool_owner_on_insert
+  before insert on pools
+  for each row execute function set_pool_owner();
+
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
@@ -320,9 +340,7 @@ alter table session_participants enable row level security;
 alter table payments enable row level security;
 
 -- Pools: owners can view (simplified to avoid recursion)
--- Fixed: Removed recursive join through pool_players -> players
--- MVP: Users can see pools they own
--- (Pool members viewing pools can be added later with a security definer function)
+-- Note: RLS policies are already fixed (no recursion) based on lessons learned
 create policy "Users can view their pools" on pools
   for select using (
     -- Direct owner check (no recursion)
@@ -336,9 +354,7 @@ create policy "Authenticated users can create pools" on pools
   for insert with check (auth.uid() is not null);
 
 -- Players: users can view players in their pools
--- Fixed: Removed recursive join to avoid infinite recursion
--- MVP: Users can see their own player + players in pools they own
--- (Pool members seeing other members can be added later with a security definer function)
+-- Note: RLS policy is already fixed (no recursion) based on lessons learned
 create policy "Users can view players in their pools" on players
   for select using (
     -- User's own player record

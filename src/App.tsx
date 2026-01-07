@@ -4,6 +4,9 @@ import Layout from './components/Layout'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import Pools from './pages/Pools'
+import CreatePool from './pages/CreatePool'
+import PoolDetails from './pages/PoolDetails'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -19,6 +22,38 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="pools"
+              element={
+                <ProtectedRoute>
+                  <Pools />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="pools/new"
+              element={
+                <ProtectedRoute>
+                  <CreatePool />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="pools/:id"
+              element={
+                <ProtectedRoute>
+                  <PoolDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="p/:slug"
+              element={
+                <ProtectedRoute>
+                  <PoolDetails />
                 </ProtectedRoute>
               }
             />
