@@ -111,16 +111,29 @@ create policy "Pool owners can view pool_players" on pool_players
     )
   );
 
+-- Function to check if user is a member of a pool (bypasses RLS to avoid recursion)
+create or replace function user_is_pool_member(pool_uuid uuid, user_uuid uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from pool_players pp
+    join players p on pp.player_id = p.id
+    where pp.pool_id = pool_uuid
+      and p.user_id = user_uuid
+      and pp.is_active = true
+  );
+$$;
+
 -- Allow pool members to view pool_players for pools they're in
+-- Uses a security definer function to avoid RLS recursion
 create policy "Pool members can view pool_players" on pool_players
   for select using (
-    pool_id in (
-      select pp.pool_id
-      from pool_players pp
-      join players p on pp.player_id = p.id
-      where p.user_id = auth.uid()
-        and pp.is_active = true
-    )
+    user_is_pool_member(pool_id, auth.uid())
   );
 
 -- Function to check if a pool has valid registration links (bypasses RLS to avoid recursion)
