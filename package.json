@@ -11,6 +11,7 @@
     "db:push": "supabase db push",
     "db:diff": "supabase db diff",
     "db:migration": "supabase migration new",
+    "db:migrate": "supabase migration up --local",
     "db:fix-mike": "supabase db execute --local -f supabase/fix_mike_pools.sql",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",

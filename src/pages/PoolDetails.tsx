@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getPool, isPoolOwner, getPoolPlayers, Pool, Player } from '../lib/pools'
 import {
@@ -7,17 +7,19 @@ import {
   getRegistrationLinks,
   RegistrationLink,
 } from '../lib/registration'
+import { getUpcomingSessions, Session } from '../lib/sessions'
 
 export default function PoolDetails() {
   const { id, slug } = useParams<{ id?: string; slug?: string }>()
   const { user } = useAuth()
-  const navigate = useNavigate()
   const [pool, setPool] = useState<Pool | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const [players, setPlayers] = useState<Player[]>([])
   const [loadingPlayers, setLoadingPlayers] = useState(true)
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [loadingSessions, setLoadingSessions] = useState(true)
   const [registrationLinks, setRegistrationLinks] = useState<RegistrationLink[]>([])
   const [generatingLink, setGeneratingLink] = useState(false)
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
@@ -40,6 +42,10 @@ export default function PoolDetails() {
         const poolPlayers = await getPoolPlayers(poolData.id)
         setPlayers(poolPlayers)
 
+        // Load sessions
+        const poolSessions = await getUpcomingSessions(poolData.id)
+        setSessions(poolSessions)
+
         // Load registration links if owner
         if (owner) {
           const links = await getRegistrationLinks(poolData.id)
@@ -50,6 +56,7 @@ export default function PoolDetails() {
       } finally {
         setLoading(false)
         setLoadingPlayers(false)
+        setLoadingSessions(false)
       }
     }
 
@@ -161,15 +168,20 @@ export default function PoolDetails() {
                 >
                   <div className="flex-1">
                     <div className="font-medium text-gray-900">{player.name}</div>
-                    <div className="text-sm text-gray-500 space-x-3 mt-1">
-                      {player.email && (
-                        <span>{player.email}</span>
-                      )}
-                      {player.phone && (
-                        <span>{player.phone}</span>
-                      )}
-                      <span>Venmo: {player.venmo_account}</span>
-                    </div>
+                    {/* Only show sensitive info (email, phone, venmo) to pool owners */}
+                    {isOwner && (
+                      <div className="text-sm text-gray-500 space-x-3 mt-1">
+                        {player.email && (
+                          <span>{player.email}</span>
+                        )}
+                        {player.phone && (
+                          <span>{player.phone}</span>
+                        )}
+                        {player.venmo_account && (
+                          <span>Venmo: {player.venmo_account}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="text-xs text-gray-400">
                     Joined {new Date(player.joined_at).toLocaleDateString()}
@@ -186,7 +198,6 @@ export default function PoolDetails() {
               </h3>
               <div className="space-y-2">
                 {registrationLinks.map((link) => {
-                  const url = `${window.location.origin}/register/${link.token}`
                   const isExpired = new Date(link.expires_at) < new Date()
                   const isUsed = link.used_at !== null
 
@@ -243,16 +254,71 @@ export default function PoolDetails() {
             </h2>
             {isOwner && (
               <Link
-                to={`/sessions/new?pool=${pool.id}`}
+                to={`/s/new?pool=${pool.id}`}
                 className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
               >
                 New Session
               </Link>
             )}
           </div>
-          <p className="text-gray-500 text-sm">
-            Sessions coming soon...
-          </p>
+          {loadingSessions ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+            </div>
+          ) : sessions.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No upcoming sessions. Create one to get started!
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {sessions.map((session) => {
+                const sessionDate = new Date(session.proposed_date)
+                const isToday = sessionDate.toDateString() === new Date().toDateString()
+                const isPast = sessionDate < new Date() && !isToday
+
+                return (
+                  <Link
+                    key={session.id}
+                    to={`/s/${session.id}`}
+                    className="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">
+                          {isToday
+                            ? 'Today'
+                            : isPast
+                            ? sessionDate.toLocaleDateString()
+                            : sessionDate.toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                          {' at '}
+                          {new Date(`2000-01-01T${session.proposed_time}`).toLocaleTimeString(
+                            'en-US',
+                            {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                            }
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1">
+                          {session.court_location || 'Location TBD'} • {session.duration_minutes} min
+                          {session.status === 'confirmed' && (
+                            <span className="ml-2 text-green-600">✓ Confirmed</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-gray-400">
+                        →
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 

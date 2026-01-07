@@ -9,6 +9,8 @@ import CreatePool from './pages/CreatePool'
 import PoolDetails from './pages/PoolDetails'
 import AuthCallback from './pages/AuthCallback'
 import Register from './pages/Register'
+import CreateSession from './pages/CreateSession'
+import SessionDetails from './pages/SessionDetails'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -58,6 +60,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <PoolDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="s/new"
+              element={
+                <ProtectedRoute>
+                  <CreateSession />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="s/:id"
+              element={
+                <ProtectedRoute>
+                  <SessionDetails />
                 </ProtectedRoute>
               }
             />

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { linkPlayerToUser } from '../lib/pools'
 
 interface AuthContextType {
   user: User | null
@@ -10,7 +11,16 @@ interface AuthContextType {
   signOut: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+// Create context with a default value to prevent HMR issues
+const defaultValue: AuthContextType = {
+  user: null,
+  session: null,
+  loading: true,
+  signIn: async () => { throw new Error('AuthProvider not initialized') },
+  signOut: async () => { throw new Error('AuthProvider not initialized') },
+}
+
+const AuthContext = createContext<AuthContextType>(defaultValue)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -37,6 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
+      
+      // Link player record in background (don't await - non-blocking)
+      if (session?.user?.email && _event === 'SIGNED_IN') {
+        linkPlayerToUser(session.user.id, session.user.email).catch(() => {
+          // Silently fail - linking is best effort
+        })
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -76,10 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
+  return useContext(AuthContext)
 }
 

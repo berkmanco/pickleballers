@@ -10,14 +10,19 @@ export default function Pools() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
+
+    // Capture values to avoid stale closures
+    const userId = user.id
+    const userEmail = user.email
 
     async function loadPools() {
       try {
         setLoading(true)
-        const data = await getPools(user.id)
+        const data = await getPools(userId, userEmail || undefined)
         setPools(data)
       } catch (err: any) {
+        console.error('Pools page: error', err)
         setError(err.message || 'Failed to load pools')
       } finally {
         setLoading(false)
@@ -25,7 +30,9 @@ export default function Pools() {
     }
 
     loadPools()
-  }, [user])
+    // Only re-run when user ID changes (email is stable for a logged-in user)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   if (loading) {
     return (

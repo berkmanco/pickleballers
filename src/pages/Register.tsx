@@ -6,15 +6,18 @@ import {
   RegistrationData,
   RegistrationLinkWithPool,
 } from '../lib/registration'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function Register() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
+  const { signIn } = useAuth()
   const [link, setLink] = useState<RegistrationLinkWithPool | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [magicLinkSent, setMagicLinkSent] = useState(false)
 
   // Debug: log token on mount
   useEffect(() => {
@@ -65,10 +68,15 @@ export default function Register() {
       setError(null)
       await registerPlayer(token, formData)
       setSuccess(true)
-      // Redirect after 2 seconds
-      setTimeout(() => {
-        navigate(`/p/${link?.pools.slug}`)
-      }, 2000)
+      
+      // Auto-send magic link to log them in
+      try {
+        await signIn(formData.email)
+        setMagicLinkSent(true)
+      } catch (signInErr) {
+        // Registration succeeded but magic link failed - still show success
+        console.log('Magic link send failed:', signInErr)
+      }
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.')
     } finally {
@@ -107,11 +115,23 @@ export default function Register() {
       <div className="max-w-md mx-auto mt-8 px-4">
         <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
           <h2 className="text-xl font-semibold text-green-800 mb-2">
-            Registration Successful!
+            Registration Successful! 🎉
           </h2>
-          <p className="text-green-700">
-            You've been added to {link?.pools?.name || 'the pool'}. Redirecting...
+          <p className="text-green-700 mb-4">
+            You've been added to {link?.pools?.name || 'the pool'}.
           </p>
+          {magicLinkSent ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-blue-800 font-medium">Check your email!</p>
+              <p className="text-blue-700 text-sm mt-1">
+                We sent a magic link to <strong>{formData.email}</strong> to log you in.
+              </p>
+            </div>
+          ) : (
+            <p className="text-gray-600 text-sm">
+              You can now <a href="/login" className="text-blue-600 underline">log in</a> with your email.
+            </p>
+          )}
         </div>
       </div>
     )

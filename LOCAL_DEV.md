@@ -75,13 +75,24 @@ The app will now use your local Supabase instance!
 
 ```bash
 # Start local Supabase
-supabase start
+npm run supabase:start
+# or: supabase start
 
 # Stop local Supabase
-supabase stop
+npm run supabase:stop
+# or: supabase stop
 
-# Reset local database (migrations + seeds)
-supabase db reset
+# Apply new migrations (preserves data - recommended for testing)
+npm run db:migrate
+# or: supabase migration up --local
+
+# Reset local database (migrations + seeds - wipes all data)
+npm run supabase:reset
+# or: supabase db reset
+
+# Create new migration
+npm run db:migration <migration-name>
+# or: supabase migration new <migration-name>
 
 # View local database in Studio
 # Open: http://127.0.0.1:54323
@@ -159,6 +170,7 @@ supabase start
 
 - Local Supabase is completely isolated from your remote project
 - Data persists between `supabase stop` / `supabase start`
-- Use `supabase db reset` to wipe and reseed
-- Migrations run automatically on `supabase start`
+- **Default workflow:** Use `npm run db:migrate` to apply new migrations (preserves data)
+- **Full reset:** Use `npm run supabase:reset` to wipe and reseed (only when needed)
+- Migrations run automatically on `supabase start` (first time only)
 

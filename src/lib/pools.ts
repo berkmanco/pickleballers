@@ -17,7 +17,11 @@ export interface CreatePoolData {
 }
 
 // Get all pools the user owns or is a member of
-export async function getPools(userId: string) {
+export async function getPools(userId: string, userEmail?: string) {
+  if (!supabase) {
+    throw new Error('Database not initialized')
+  }
+  
   // Get pools user owns
   const { data: ownedPools, error: ownedError } = await supabase
     .from('pools')
@@ -29,11 +33,30 @@ export async function getPools(userId: string) {
   if (ownedError) throw ownedError
 
   // Get pools user is a member of (via pool_players)
-  const { data: playerRecord } = await supabase
+  // First try to find player record by user_id
+  let { data: playerRecord } = await supabase
     .from('players')
     .select('id')
     .eq('user_id', userId)
     .single()
+
+  // If not found and email provided, try to link by email
+  if (!playerRecord && userEmail) {
+    try {
+      const playerId = await linkPlayerToUser(userId, userEmail)
+      if (playerId) {
+        // Retry the query after linking
+        const { data: retryRecord } = await supabase
+          .from('players')
+          .select('id')
+          .eq('user_id', userId)
+          .single()
+        playerRecord = retryRecord
+      }
+    } catch (err) {
+      // Silently fail - linking is best effort
+    }
+  }
 
   if (!playerRecord) {
     return ownedPools || []
@@ -128,6 +151,49 @@ export interface Player {
   is_active: boolean
   created_at: string
   joined_at: string // from pool_players
+}
+
+// Link player record to user account (by email)
+// This is called after sign-in to connect the player record created during registration
+// Uses a SECURITY DEFINER function to bypass RLS (users can't see unlinked player records)
+export async function linkPlayerToUser(userId: string, email: string): Promise<string | null> {
+  const { data: playerId, error } = await supabase.rpc('link_player_to_user', {
+    p_email: email
+  })
+
+  if (error) {
+    console.error('Error linking player to user:', error)
+    throw error
+  }
+
+  return playerId
+}
+
+// Get player ID for current user
+// If not found, tries to link by email first
+export async function getCurrentPlayerId(userId: string, email?: string): Promise<string | null> {
+  // First, try to find existing linked player
+  const { data: existingPlayer, error: findError } = await supabase
+    .from('players')
+    .select('id')
+    .eq('user_id', userId)
+    .single()
+
+  if (!findError && existingPlayer) {
+    return existingPlayer.id
+  }
+
+  // If not found and email provided, try to link by email
+  if (email && findError?.code === 'PGRST116') {
+    try {
+      return await linkPlayerToUser(userId, email)
+    } catch (err) {
+      // If linking fails, return null
+      return null
+    }
+  }
+
+  return null
 }
 
 // Get all players in a pool

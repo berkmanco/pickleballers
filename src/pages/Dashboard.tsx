@@ -9,11 +9,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
+
+    const userId = user.id
+    const userEmail = user.email
 
     async function loadPools() {
       try {
-        const data = await getPools(user.id)
+        const data = await getPools(userId, userEmail || undefined)
         setPools(data)
       } catch (err) {
         console.error('Failed to load pools:', err)
@@ -23,7 +26,8 @@ export default function Dashboard() {
     }
 
     loadPools()
-  }, [user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   return (
     <div className="max-w-6xl mx-auto w-full">
