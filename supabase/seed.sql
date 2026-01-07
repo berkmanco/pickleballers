@@ -1,5 +1,5 @@
 -- ============================================
--- Seed Data for Pickleballers
+-- Seed Data for DinkUp
 -- ============================================
 -- This file is automatically run by Supabase CLI in LOCAL development only
 -- 

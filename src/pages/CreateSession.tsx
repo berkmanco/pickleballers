@@ -73,7 +73,7 @@ export default function CreateSession() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3CBBB1]"></div>
       </div>
     )
   }
@@ -86,7 +86,7 @@ export default function CreateSession() {
           <p className="text-red-700">{error}</p>
           <Link
             to="/pools"
-            className="text-blue-600 hover:text-blue-700 mt-4 inline-block"
+            className="text-[#3CBBB1] hover:text-[#35a8a0] mt-4 inline-block"
           >
             ← Back to Pools
           </Link>
@@ -108,7 +108,7 @@ export default function CreateSession() {
           {pool && (
             <Link
               to={`/p/${pool.slug}`}
-              className="text-blue-600 hover:text-blue-700 mt-4 inline-block"
+              className="text-[#3CBBB1] hover:text-[#35a8a0] mt-4 inline-block"
             >
               ← Back to {pool.name}
             </Link>
@@ -123,7 +123,7 @@ export default function CreateSession() {
       <div className="mb-6">
         <Link
           to={pool ? `/p/${pool.slug}` : '/pools'}
-          className="text-blue-600 hover:text-blue-700 text-sm mb-4 inline-block"
+          className="text-[#3CBBB1] hover:text-[#35a8a0] text-sm mb-4 inline-block"
         >
           ← Back to {pool?.name || 'Pools'}
         </Link>
@@ -159,7 +159,7 @@ export default function CreateSession() {
                 setFormData({ ...formData, proposed_date: e.target.value })
               }
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
             />
           </div>
 
@@ -178,7 +178,7 @@ export default function CreateSession() {
               onChange={(e) =>
                 setFormData({ ...formData, proposed_time: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
             />
           </div>
         </div>
@@ -200,7 +200,7 @@ export default function CreateSession() {
                   duration_minutes: parseInt(e.target.value),
                 })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
             >
               <option value={30}>30 min</option>
               <option value={60}>60 min</option>
@@ -227,7 +227,7 @@ export default function CreateSession() {
                   min_players: parseInt(e.target.value) || 4,
                 })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
             />
           </div>
 
@@ -249,7 +249,7 @@ export default function CreateSession() {
                   max_players: parseInt(e.target.value) || 7,
                 })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
             />
           </div>
         </div>
@@ -269,7 +269,7 @@ export default function CreateSession() {
               setFormData({ ...formData, court_location: e.target.value })
             }
             placeholder="e.g., Pickle Shack, Court 8"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
           />
         </div>
 
@@ -277,14 +277,14 @@ export default function CreateSession() {
           <button
             type="button"
             onClick={() => navigate(pool ? `/p/${pool.slug}` : '/pools')}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1]"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="flex-1 bg-[#3CBBB1] text-white py-2 px-4 rounded-md hover:bg-[#35a8a0] focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {submitting ? 'Creating...' : 'Create Session'}
           </button>

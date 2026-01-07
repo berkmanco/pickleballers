@@ -37,7 +37,7 @@ export default function Pools() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3CBBB1]"></div>
       </div>
     )
   }
@@ -58,7 +58,7 @@ export default function Pools() {
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Pools</h1>
         <Link
           to="/pools/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm sm:text-base"
+          className="bg-[#3CBBB1] text-white px-4 py-2 rounded-lg hover:bg-[#35a8a0] transition text-sm sm:text-base"
         >
           Create Pool
         </Link>
@@ -69,7 +69,7 @@ export default function Pools() {
           <p className="text-gray-600 mb-4">You don't have any pools yet.</p>
           <Link
             to="/pools/new"
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
+            className="inline-block bg-[#3CBBB1] text-white px-6 py-3 rounded-lg hover:bg-[#35a8a0] transition"
           >
             Create Your First Pool
           </Link>

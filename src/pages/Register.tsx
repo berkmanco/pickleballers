@@ -87,7 +87,7 @@ export default function Register() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3CBBB1]"></div>
       </div>
     )
   }
@@ -123,13 +123,13 @@ export default function Register() {
           {magicLinkSent ? (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-blue-800 font-medium">Check your email!</p>
-              <p className="text-blue-700 text-sm mt-1">
+              <p className="text-[#35a8a0] text-sm mt-1">
                 We sent a magic link to <strong>{formData.email}</strong> to log you in.
               </p>
             </div>
           ) : (
             <p className="text-gray-600 text-sm">
-              You can now <a href="/login" className="text-blue-600 underline">log in</a> with your email.
+              You can now <a href="/login" className="text-[#3CBBB1] underline">log in</a> with your email.
             </p>
           )}
         </div>
@@ -185,7 +185,7 @@ export default function Register() {
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
               placeholder="Your full name"
             />
           </div>
@@ -205,7 +205,7 @@ export default function Register() {
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
               placeholder="your.email@example.com"
             />
           </div>
@@ -224,7 +224,7 @@ export default function Register() {
               onChange={(e) =>
                 setFormData({ ...formData, phone: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
               placeholder="(555) 123-4567"
             />
           </div>
@@ -244,7 +244,7 @@ export default function Register() {
               onChange={(e) =>
                 setFormData({ ...formData, venmo_account: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
               placeholder="@your-venmo-username"
             />
           </div>
@@ -267,7 +267,7 @@ export default function Register() {
                       },
                     })
                   }
-                  className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="mr-2 h-4 w-4 text-[#3CBBB1] focus:ring-[#3CBBB1] border-gray-300 rounded"
                 />
                 <span className="text-sm text-gray-700">Email notifications</span>
               </label>
@@ -284,7 +284,7 @@ export default function Register() {
                       },
                     })
                   }
-                  className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="mr-2 h-4 w-4 text-[#3CBBB1] focus:ring-[#3CBBB1] border-gray-300 rounded"
                 />
                 <span className="text-sm text-gray-700">SMS notifications</span>
               </label>
@@ -294,7 +294,7 @@ export default function Register() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="w-full bg-[#3CBBB1] text-white py-2 px-4 rounded-md hover:bg-[#35a8a0] focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {submitting ? 'Registering...' : 'Register'}
           </button>

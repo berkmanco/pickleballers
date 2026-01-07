@@ -125,7 +125,7 @@ export default function SessionDetails() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3CBBB1]"></div>
       </div>
     )
   }
@@ -138,7 +138,7 @@ export default function SessionDetails() {
           <p className="text-red-700">{error || 'Session not found'}</p>
           <Link
             to="/pools"
-            className="text-blue-600 hover:text-blue-700 mt-4 inline-block"
+            className="text-[#3CBBB1] hover:text-[#35a8a0] mt-4 inline-block"
           >
             ← Back to Pools
           </Link>
@@ -160,7 +160,7 @@ export default function SessionDetails() {
       <div className="mb-6">
         <Link
           to={`/p/${session.pools.slug}`}
-          className="text-blue-600 hover:text-blue-700 text-sm mb-4 inline-block"
+          className="text-[#3CBBB1] hover:text-[#35a8a0] text-sm mb-4 inline-block"
         >
           ← Back to {session.pools.name}
         </Link>
@@ -273,7 +273,7 @@ export default function SessionDetails() {
               <button
                 onClick={() => handleOptIn('committed')}
                 disabled={optingIn}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="w-full bg-[#3CBBB1] text-white py-2 px-4 rounded-md hover:bg-[#35a8a0] focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 {optingIn ? 'Joining...' : "I'm In"}
               </button>
@@ -320,7 +320,7 @@ export default function SessionDetails() {
           {/* Participants list */}
           {loadingParticipants ? (
             <div className="flex items-center justify-center py-4">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3CBBB1]"></div>
             </div>
           ) : participants.length === 0 ? (
             <p className="text-gray-500 text-sm">No participants yet.</p>

@@ -1,96 +1,83 @@
-# Pickleballers
+# DinkUp 🏓
 
-A self-service web application to coordinate pickleball games among friends and family. The goal is to shift coordination overhead from the admin to individual players through an opt-in model.
+A self-service web app for coordinating pickleball sessions with your crew.
 
-## Problem Statement
+## The Problem
 
-Currently, coordinating pickleball games involves:
-- Manual group text coordination with lots of back-and-forth
-- Unknown court availability until after commitments
+Coordinating pickleball games involves too much manual work:
+- Group text back-and-forth to find who's in
 - Manual Venmo requests and payment chasing
-- Creating new group texts for each session
-- Scrambling for replacements when people drop out
-- Too much coordinator overhead
+- Scrambling for replacements when someone drops
 
-## Solution
+## The Solution
 
-**Opt-in, self-service model** where:
-- Players see available sessions and commit themselves
-- Admin books courts early to secure slots
-- Payment requests sent 24h before session (after numbers settle)
-- Automatic waitlist management when spots open
-- System tracks payments and sends reminders
+**Opt-in model**: Players see sessions and commit themselves. No manual coordination needed.
+
+- 📅 Admin proposes sessions
+- ✋ Players opt themselves in
+- 💰 Automatic payment requests at 24h before
+- 🔄 Automatic waitlist promotion
 
 ## Tech Stack
 
-- **Frontend**: React + TypeScript + Vite (mobile-first)
-- **Backend**: Supabase (PostgreSQL + Auth + Storage + Edge Functions)
-- **Database**: Supabase JS Client (direct queries, no ORM)
-- **Styling**: Tailwind CSS (mobile-first responsive)
-- **Auth**: Supabase Magic Links (passwordless)
-- **Email**: Resend
-- **SMS**: Twilio
-- **Deployment**: Vercel
-- **Linting**: ESLint
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS
+- **Backend**: Supabase (PostgreSQL + Auth)
+- **Auth**: Magic Links (passwordless)
+- **Payments**: Venmo links (manual reconciliation)
 
-## Key Features
+## Quick Start
 
-### Core Functionality
-- **Pools**: Multiple groups (friends, couples, family)
-- **Players**: Self-registration via one-time links
-- **Sessions**: Proposed date/times for games
-- **Opt-in**: Players commit themselves (no manual coordination)
-- **Payments**: Automatic Venmo links, payment tracking
-- **Waitlist**: Automatic promotion when spots open
-- **Cancellations**: Policy protects admin from eating costs
+```bash
+# Install dependencies
+npm install
 
-### Cost Model
-- **Per court**: $57 ($9 admin + $48 guest pool split among guests)
-- **Payment timing**: Venmo requests sent 24h before session
-- More guests = lower cost per guest
+# Start local Supabase (requires Docker)
+supabase start
 
-### Timeline
-- **Book early**: Secure court when minimum players commit
-- **24h before**: Roster locks, payment requests sent
-- **12h before**: Last chance to cancel court if below minimum
+# Create .env.local with local credentials (from supabase start output)
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=<anon-key>
+
+# Start dev server
+npm run dev
+```
 
 ## Documentation
 
-- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - Detailed technical architecture, database schema, workflows
-- **[docs/SIMPLIFICATIONS.md](./docs/SIMPLIFICATIONS.md)** - MVP simplification recommendations
-- **[docs/CONSIDERATIONS.md](./docs/CONSIDERATIONS.md)** - Mobile-first, notifications, AI, auth decisions
-- **[docs/REAL_WORLD_EXAMPLES.md](./docs/REAL_WORLD_EXAMPLES.md)** - Real-world coordination patterns
-- **[docs/DATA_MODEL_PRESSURE_TEST.md](./docs/DATA_MODEL_PRESSURE_TEST.md)** - Data model testing
+- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - Technical architecture, database schema, workflows
+- **[LOCAL_DEV.md](./LOCAL_DEV.md)** - Local development setup
+- **[FEATURE_STATUS.md](./FEATURE_STATUS.md)** - Current feature status
 
-## Key Decisions
+## Features
 
-### Payment & Cost Model
-- **Venmo only** (no cash, no Stripe initially)
-- **Per court**: $57 total ($9 admin + $48 guest pool)
-- **Guest cost**: $48 per court ÷ number of guests
-- Payment requests sent **24h before session** (after numbers settle)
-- Manual reconciliation (Venmo has no API)
+### ✅ Completed
+- Pool management (create, view, manage)
+- Player registration (one-time links, magic link auth)
+- Session proposals (create, view sessions)
+- Player opt-in system (commit, maybe, drop out)
+- Cost calculation (dynamic based on player count)
+- Privacy controls (sensitive info hidden from non-admins)
 
-### Cancellation Policy
-- **Before payment deadline (24h before)**: Can drop freely, no payment owed
-- **After payment deadline**: Owe your share unless replacement found
-- **12h before**: Last chance to cancel court on CourtReserve if below minimum
+### 🚧 In Progress
+- Payment tracking
 
-### Notifications
-- **SMS**: From Twilio service number (not your personal number)
-- **Email**: From `noreply@pickleballers.app`
-- Players see service names, not personal contact info
+### 📋 Planned
+- Notifications (email/SMS)
+- Waitlist auto-promotion
+- Court booking integration
 
-### Other
-- **Court Booking**: Book early to secure slot, admin fronts $57/court
-- **Court allocation**: 4-7 players = 1 court, 8-11 players = 2 courts
-- **Multi-admin**: Start with single admin per pool (can add later)
+## Cost Model
 
-## Project Status
+Per court: $57 ($9 admin + $48 guest pool split among guests)
 
-🚧 **Planning Phase** - Architecture and decisions documented, ready to start implementation.
+| Players | Courts | Per Guest |
+|---------|--------|-----------|
+| 4       | 1      | $16.00    |
+| 5       | 1      | $12.00    |
+| 6       | 1      | $9.60     |
+| 7       | 1      | $8.00     |
+| 8       | 2      | $13.71    |
 
 ## License
 
 Private project
-

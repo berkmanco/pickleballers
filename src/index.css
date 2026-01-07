@@ -1,3 +1,10 @@
 @import "tailwindcss";
 
+/* DinkUp Brand Colors */
+:root {
+  --dinkup-navy: #2D3640;
+  --dinkup-lime: #C4D600;
+  --dinkup-teal: #3CBBB1;
+  --dinkup-white: #FFFFFF;
+}
 

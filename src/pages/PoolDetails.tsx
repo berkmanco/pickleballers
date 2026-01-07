@@ -87,7 +87,7 @@ export default function PoolDetails() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3CBBB1]"></div>
       </div>
     )
   }
@@ -101,7 +101,7 @@ export default function PoolDetails() {
           </p>
           <Link
             to="/pools"
-            className="text-blue-600 hover:text-blue-700 mt-2 inline-block"
+            className="text-[#3CBBB1] hover:text-[#35a8a0] mt-2 inline-block"
           >
             ← Back to Pools
           </Link>
@@ -115,7 +115,7 @@ export default function PoolDetails() {
       <div className="mb-6">
         <Link
           to="/pools"
-          className="text-blue-600 hover:text-blue-700 text-sm mb-4 inline-block"
+          className="text-[#3CBBB1] hover:text-[#35a8a0] text-sm mb-4 inline-block"
         >
           ← Back to Pools
         </Link>
@@ -145,7 +145,7 @@ export default function PoolDetails() {
               <button
                 onClick={handleGenerateLink}
                 disabled={generatingLink}
-                className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-sm bg-[#3CBBB1] text-white px-3 py-1 rounded hover:bg-[#35a8a0] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {generatingLink ? 'Generating...' : 'Generate Link'}
               </button>
@@ -153,7 +153,7 @@ export default function PoolDetails() {
           </div>
           {loadingPlayers ? (
             <div className="flex items-center justify-center py-4">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3CBBB1]"></div>
             </div>
           ) : players.length === 0 ? (
             <p className="text-gray-500 text-sm">
@@ -233,7 +233,7 @@ export default function PoolDetails() {
                       {!isUsed && !isExpired && (
                         <button
                           onClick={() => copyRegistrationUrl(link.token)}
-                          className="ml-2 text-blue-600 hover:text-blue-700 text-xs whitespace-nowrap"
+                          className="ml-2 text-[#3CBBB1] hover:text-[#35a8a0] text-xs whitespace-nowrap"
                         >
                           {copiedToken === link.token ? 'Copied!' : 'Copy URL'}
                         </button>
@@ -255,7 +255,7 @@ export default function PoolDetails() {
             {isOwner && (
               <Link
                 to={`/s/new?pool=${pool.id}`}
-                className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+                className="text-sm bg-[#3CBBB1] text-white px-3 py-1 rounded hover:bg-[#35a8a0] transition"
               >
                 New Session
               </Link>
@@ -263,7 +263,7 @@ export default function PoolDetails() {
           </div>
           {loadingSessions ? (
             <div className="flex items-center justify-center py-4">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3CBBB1]"></div>
             </div>
           ) : sessions.length === 0 ? (
             <p className="text-gray-500 text-sm">

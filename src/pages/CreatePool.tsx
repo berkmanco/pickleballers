@@ -48,7 +48,7 @@ export default function CreatePool() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none text-gray-900 placeholder:text-gray-400 bg-white"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3CBBB1] focus:border-[#3CBBB1] focus:outline-none text-gray-900 placeholder:text-gray-400 bg-white"
             placeholder="e.g., Weekend Friends, Couples League"
           />
         </div>
@@ -62,7 +62,7 @@ export default function CreatePool() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none text-gray-900 placeholder:text-gray-400 bg-white resize-none"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3CBBB1] focus:border-[#3CBBB1] focus:outline-none text-gray-900 placeholder:text-gray-400 bg-white resize-none"
             placeholder="Optional description for this pool..."
           />
         </div>
@@ -77,7 +77,7 @@ export default function CreatePool() {
           <button
             type="submit"
             disabled={loading || !name.trim()}
-            className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="flex-1 bg-[#3CBBB1] text-white py-2 px-4 rounded-lg hover:bg-[#35a8a0] disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {loading ? 'Creating...' : 'Create Pool'}
           </button>

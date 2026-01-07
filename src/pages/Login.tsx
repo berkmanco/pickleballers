@@ -41,7 +41,7 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none text-gray-900 placeholder:text-gray-400 bg-white"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3CBBB1] focus:border-[#3CBBB1] focus:outline-none text-gray-900 placeholder:text-gray-400 bg-white"
               placeholder="your@email.com"
             />
           </div>
@@ -49,7 +49,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="w-full bg-[#3CBBB1] text-white py-2 px-4 rounded-lg hover:bg-[#35a8a0] disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {loading ? 'Sending...' : 'Send Magic Link'}
           </button>
