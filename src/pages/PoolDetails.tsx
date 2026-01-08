@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getPool, isPoolOwner, getPoolPlayers, Pool, Player } from '../lib/pools'
+import { formatPhone } from '../lib/utils'
 import {
   createRegistrationLink,
   getRegistrationLinks,
@@ -27,15 +28,17 @@ export default function PoolDetails() {
   useEffect(() => {
     const identifier = slug || id
     if (!identifier || !user) return
+    const poolIdentifier = identifier // Capture for TypeScript narrowing
+    const userId = user.id
 
     async function loadPool() {
       try {
         setLoading(true)
         setLoadingPlayers(true)
-        const poolData = await getPool(identifier)
+        const poolData = await getPool(poolIdentifier)
         setPool(poolData)
         
-        const owner = await isPoolOwner(poolData.id, user.id)
+        const owner = await isPoolOwner(poolData.id, userId)
         setIsOwner(owner)
 
         // Load players
@@ -164,28 +167,25 @@ export default function PoolDetails() {
               {players.map((player) => (
                 <div
                   key={player.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="p-3 bg-gray-50 rounded-lg overflow-hidden"
                 >
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900">{player.name}</div>
-                    {/* Only show sensitive info (email, phone, venmo) to pool owners */}
-                    {isOwner && (
-                      <div className="text-sm text-gray-500 space-x-3 mt-1">
-                        {player.email && (
-                          <span>{player.email}</span>
-                        )}
-                        {player.phone && (
-                          <span>{player.phone}</span>
-                        )}
-                        {player.venmo_account && (
-                          <span>Venmo: {player.venmo_account}</span>
-                        )}
-                      </div>
-                    )}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="font-medium text-gray-900 min-w-0 break-words">{player.name}</div>
+                    <div className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
+                      Joined {new Date(player.joined_at).toLocaleDateString()}
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-400">
-                    Joined {new Date(player.joined_at).toLocaleDateString()}
-                  </div>
+                  {/* Only show contact info to pool owners */}
+                  {isOwner && (
+                    <div className="text-sm text-gray-500 mt-1 space-y-0.5">
+                      {player.email && (
+                        <div className="truncate">{player.email}</div>
+                      )}
+                      {player.phone && (
+                        <div>{formatPhone(player.phone)}</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -304,7 +304,13 @@ export default function PoolDetails() {
                           )}
                         </div>
                         <div className="text-sm text-gray-500 mt-1">
-                          {session.court_location || 'Location TBD'} • {session.duration_minutes} min
+                          {session.court_location || 'Location TBD'}
+                          {session.court_numbers && session.court_numbers.length > 0 && (
+                            <span> • {session.court_numbers.length === 1 
+                              ? `Court ${session.court_numbers[0]}`
+                              : `Courts ${session.court_numbers.join(', ')}`}</span>
+                          )}
+                          {' • '}{session.duration_minutes} min
                           {session.status === 'confirmed' && (
                             <span className="ml-2 text-green-600">✓ Confirmed</span>
                           )}

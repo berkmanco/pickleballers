@@ -24,10 +24,12 @@ export default function CreateSession() {
     min_players: 4,
     max_players: 7,
     court_location: '',
+    court_numbers: [],
     courts_needed: 1,
     admin_cost_per_court: 9.0,
     guest_pool_per_court: 48.0,
   })
+  const [courtNumbersInput, setCourtNumbersInput] = useState('')
 
   useEffect(() => {
     if (!poolId || !user) return
@@ -62,7 +64,17 @@ export default function CreateSession() {
     try {
       setSubmitting(true)
       setError(null)
-      const session = await createSession(formData)
+      
+      // Parse court numbers from comma-separated input
+      const courtNumbers = courtNumbersInput
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s.length > 0)
+      
+      const session = await createSession({
+        ...formData,
+        court_numbers: courtNumbers,
+      })
       
       // Notify pool members about the new session (fire and forget)
       notifySessionCreated(session.id).catch(console.error)
@@ -259,23 +271,41 @@ export default function CreateSession() {
           </div>
         </div>
 
-        <div>
-          <label
-            htmlFor="court_location"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Court Location
-          </label>
-          <input
-            type="text"
-            id="court_location"
-            value={formData.court_location}
-            onChange={(e) =>
-              setFormData({ ...formData, court_location: e.target.value })
-            }
-            placeholder="e.g., Pickle Shack, Court 8"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
-          />
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label
+              htmlFor="court_location"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Location
+            </label>
+            <input
+              type="text"
+              id="court_location"
+              value={formData.court_location}
+              onChange={(e) =>
+                setFormData({ ...formData, court_location: e.target.value })
+              }
+              placeholder="e.g., Pickle Shack"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="court_numbers"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Court Numbers
+            </label>
+            <input
+              type="text"
+              id="court_numbers"
+              value={courtNumbersInput}
+              onChange={(e) => setCourtNumbersInput(e.target.value)}
+              placeholder="e.g., 1, 2 or A, B"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
+            />
+          </div>
         </div>
 
         <div className="flex gap-4">

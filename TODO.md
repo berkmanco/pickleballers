@@ -1,14 +1,11 @@
 ## To Do 📋
 
 ### High Priority
-- [ ] Mobile UI overflow issues
-- [ ] Too much white space on homepage on mobile
 - [ ] players page w/ details (dont show all details in list)
 
 ### Medium Priority
 - [ ] auto-login after registration (needs edge function)
 - [ ] custom design for supabase auth emails (need custom SMTP server)
-- [ ] meta tags showing icon/logo for sharing via imessage
 - [ ] UI - Add players to multiple pools (dropdown of existing players, add new, create link)
 
 ### Future / Exploration
@@ -33,3 +30,9 @@
 - [x] payment v1
 - [x] use name instead of email in nav
 - [x] phone number formatting in db
+- [x] Mobile UI overflow issues
+- [x] Too much white space on homepage on mobile
+- [x] meta tags showing icon/logo for sharing via imessage
+- [x] Court numbers field for sessions
+- [x] Phone number display formatting
+- [x] Cleaned up player list UI (removed Venmo, stacked info)

@@ -36,3 +36,25 @@ export function formatTime(timeString: string): string {
     hour12: true,
   })
 }
+
+/**
+ * Format a phone number for display
+ * "+16145376574" → "(614) 537-6574"
+ * "6145376574" → "(614) 537-6574"
+ * Returns original string if format not recognized
+ */
+export function formatPhone(phone: string): string {
+  // Remove all non-digit characters
+  const digits = phone.replace(/\D/g, '')
+  
+  // Handle US numbers (10 or 11 digits)
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+  }
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`
+  }
+  
+  // Return original if we can't format it
+  return phone
+}

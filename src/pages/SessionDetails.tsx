@@ -47,18 +47,20 @@ export default function SessionDetails() {
 
   useEffect(() => {
     if (!id || !user) return
+    const sessionId = id // Capture for TypeScript narrowing in async function
+    const userId = user.id
 
     async function loadSession() {
       try {
         setLoading(true)
-        const sessionData = await getSession(id)
+        const sessionData = await getSession(sessionId)
         setSession(sessionData)
 
-        const owner = await isPoolOwner(sessionData.pool_id, user.id)
+        const owner = await isPoolOwner(sessionData.pool_id, userId)
         setIsOwner(owner)
 
         // Get current player ID
-        const playerId = await getCurrentPlayerId(user.id)
+        const playerId = await getCurrentPlayerId(userId)
         setCurrentPlayerId(playerId)
 
         // Load participants
@@ -399,6 +401,16 @@ export default function SessionDetails() {
               <div>
                 <dt className="text-gray-500">Location</dt>
                 <dd className="text-gray-900 mt-1">{session.court_location}</dd>
+              </div>
+            )}
+            {session.court_numbers && session.court_numbers.length > 0 && (
+              <div>
+                <dt className="text-gray-500">Courts</dt>
+                <dd className="text-gray-900 mt-1">
+                  {session.court_numbers.length === 1 
+                    ? `Court ${session.court_numbers[0]}`
+                    : `Courts ${session.court_numbers.join(', ')}`}
+                </dd>
               </div>
             )}
             <div>

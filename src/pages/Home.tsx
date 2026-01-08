@@ -7,16 +7,16 @@ export default function Home() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#2D3640]">
       {/* Hero Section */}
-      <div className="max-w-4xl mx-auto px-4 py-16 sm:py-24 text-center">
+      <div className="max-w-4xl mx-auto px-4 py-10 sm:py-24 text-center">
         <img 
           src="/logo.png" 
           alt="DinkUp" 
-          className="w-32 sm:w-40 mx-auto mb-6"
+          className="w-24 sm:w-40 mx-auto mb-4 sm:mb-6"
         />
-        <h1 className="text-5xl sm:text-6xl font-bold text-white mb-4 tracking-tight">
+        <h1 className="text-4xl sm:text-6xl font-bold text-white mb-3 sm:mb-4 tracking-tight">
           DinkUp
         </h1>
-        <p className="text-xl sm:text-2xl text-white/80 mb-10 font-light">
+        <p className="text-lg sm:text-2xl text-white/80 mb-6 sm:mb-10 font-light">
           Less planning. More dinking.
         </p>
         
@@ -38,9 +38,9 @@ export default function Home() {
       </div>
 
       {/* Features Section */}
-      <div className="bg-white/5 py-16">
+      <div className="bg-white/5 py-10 sm:py-16">
         <div className="max-w-4xl mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
             <div className="bg-white/10 backdrop-blur p-6 rounded-xl border border-white/10">
               <div className="text-3xl mb-3">🙋</div>
               <h3 className="text-lg font-semibold mb-2 text-white">Self-Service</h3>
@@ -67,10 +67,10 @@ export default function Home() {
       </div>
 
       {/* How it works */}
-      <div className="py-16">
+      <div className="py-10 sm:py-16">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-2xl font-bold text-white mb-10">How it works</h2>
-          <div className="grid md:grid-cols-4 gap-4 text-left">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-6 sm:mb-10">How it works</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
             <div className="flex items-start gap-3">
               <span className="flex-shrink-0 w-8 h-8 bg-[#3CBBB1] text-white rounded-full flex items-center justify-center font-bold">1</span>
               <div>

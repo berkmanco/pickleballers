@@ -38,6 +38,7 @@ export interface CreateSessionData {
   min_players?: number
   max_players?: number
   court_location?: string
+  court_numbers?: string[]
   courts_needed?: number
   admin_cost_per_court?: number
   guest_pool_per_court?: number
@@ -66,6 +67,7 @@ export async function createSession(sessionData: CreateSessionData) {
       min_players: sessionData.min_players || 4,
       max_players: sessionData.max_players || 7,
       court_location: sessionData.court_location || null,
+      court_numbers: sessionData.court_numbers?.length ? sessionData.court_numbers : null,
       courts_needed: sessionData.courts_needed || 1,
       admin_cost_per_court: sessionData.admin_cost_per_court || 9.0,
       guest_pool_per_court: sessionData.guest_pool_per_court || 48.0,
