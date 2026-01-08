@@ -5,7 +5,6 @@ import Layout from './components/Layout'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
-import Pools from './pages/Pools'
 import CreatePool from './pages/CreatePool'
 import PoolDetails from './pages/PoolDetails'
 import AuthCallback from './pages/AuthCallback'
@@ -33,14 +32,8 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="pools"
-              element={
-                <ProtectedRoute>
-                  <Pools />
-                </ProtectedRoute>
-              }
-            />
+            {/* Redirect /pools to /dashboard */}
+            <Route path="pools" element={<Navigate to="/dashboard" replace />} />
             <Route
               path="pools/new"
               element={

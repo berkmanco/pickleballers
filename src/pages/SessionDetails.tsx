@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { getSession, SessionWithPool, getSessionCostSummary, SessionCostSummary } from '../lib/sessions'
-import { isPoolOwner, getCurrentPlayerId } from '../lib/pools'
+import { getSession, SessionWithPool, getSessionCostSummary, SessionCostSummary, lockRoster } from '../lib/sessions'
+import { isPoolOwner, getCurrentPlayerId, getPoolOwnerPlayer } from '../lib/pools'
 import {
   getSessionParticipants,
   optInToSession,
@@ -11,10 +11,19 @@ import {
   SessionParticipantWithPlayer,
   ParticipantStatus,
 } from '../lib/sessionParticipants'
+import {
+  getSessionPayments,
+  createPaymentsForSession,
+  markPaymentPaid,
+  forgivePayment,
+  markRequestSent,
+  getPaymentSummary,
+  PaymentWithParticipant,
+  PaymentSummary,
+} from '../lib/payments'
 
 export default function SessionDetails() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   const { user } = useAuth()
   const [session, setSession] = useState<SessionWithPool | null>(null)
   const [loading, setLoading] = useState(true)
@@ -26,6 +35,12 @@ export default function SessionDetails() {
   const [loadingParticipants, setLoadingParticipants] = useState(true)
   const [optingIn, setOptingIn] = useState(false)
   const [costSummary, setCostSummary] = useState<SessionCostSummary | null>(null)
+  
+  // Payment state
+  const [payments, setPayments] = useState<PaymentWithParticipant[]>([])
+  const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | null>(null)
+  const [lockingRoster, setLockingRoster] = useState(false)
+  const [updatingPayment, setUpdatingPayment] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id || !user) return
@@ -53,6 +68,11 @@ export default function SessionDetails() {
         } catch (err) {
           console.error('Failed to load cost summary:', err)
         }
+
+        // Load payments if roster is locked
+        if (sessionData.roster_locked) {
+          await loadPayments(sessionData.id)
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to load session')
       } finally {
@@ -62,6 +82,19 @@ export default function SessionDetails() {
 
     loadSession()
   }, [id, user])
+
+  async function loadPayments(sessionId: string) {
+    try {
+      const [paymentsData, summaryData] = await Promise.all([
+        getSessionPayments(sessionId),
+        getPaymentSummary(sessionId),
+      ])
+      setPayments(paymentsData)
+      setPaymentSummary(summaryData)
+    } catch (err) {
+      console.error('Failed to load payments:', err)
+    }
+  }
 
   async function loadParticipants(sessionId: string, playerId: string | null) {
     try {
@@ -122,6 +155,105 @@ export default function SessionDetails() {
     }
   }
 
+  async function handleLockRoster() {
+    if (!session || lockingRoster) return
+
+    // Confirm with the user
+    const committedCount = participants.filter(p => p.status === 'committed' || p.status === 'paid').length
+    if (committedCount < session.min_players) {
+      setError(`Cannot lock roster: only ${committedCount} players committed, need at least ${session.min_players}`)
+      return
+    }
+
+    if (!confirm(`Lock roster with ${committedCount} players and generate payment requests?`)) {
+      return
+    }
+
+    try {
+      setLockingRoster(true)
+      setError(null)
+
+      // Get admin's Venmo account for payment links
+      const adminPlayer = await getPoolOwnerPlayer(session.pool_id)
+      if (!adminPlayer?.venmo_account) {
+        setError('Admin Venmo account not set. Please update your profile.')
+        return
+      }
+
+      // Lock the roster
+      const updatedSession = await lockRoster(session.id)
+      setSession({ ...session, ...updatedSession })
+
+      // Create payment records
+      await createPaymentsForSession(
+        session.id,
+        adminPlayer.venmo_account,
+        session.proposed_date,
+        session.proposed_time,
+        session.pools.name
+      )
+
+      // Reload payments
+      await loadPayments(session.id)
+    } catch (err: any) {
+      setError(err.message || 'Failed to lock roster')
+    } finally {
+      setLockingRoster(false)
+    }
+  }
+
+  async function handleMarkPaid(paymentId: string) {
+    if (updatingPayment) return
+
+    try {
+      setUpdatingPayment(paymentId)
+      await markPaymentPaid(paymentId)
+      if (session) {
+        await loadPayments(session.id)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to mark payment as paid')
+    } finally {
+      setUpdatingPayment(null)
+    }
+  }
+
+  async function handleForgivePayment(paymentId: string, playerName: string) {
+    if (updatingPayment) return
+
+    if (!confirm(`Forgive payment for ${playerName}? They won't owe anything.`)) {
+      return
+    }
+    
+    try {
+      setUpdatingPayment(paymentId)
+      await forgivePayment(paymentId)
+      if (session) {
+        await loadPayments(session.id)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to forgive payment')
+    } finally {
+      setUpdatingPayment(null)
+    }
+  }
+
+  async function handleMarkRequestSent(paymentId: string) {
+    if (updatingPayment) return
+
+    try {
+      setUpdatingPayment(paymentId)
+      await markRequestSent(paymentId)
+      if (session) {
+        await loadPayments(session.id)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to mark request as sent')
+    } finally {
+      setUpdatingPayment(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -137,10 +269,10 @@ export default function SessionDetails() {
           <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
           <p className="text-red-700">{error || 'Session not found'}</p>
           <Link
-            to="/pools"
+            to="/dashboard"
             className="text-[#3CBBB1] hover:text-[#35a8a0] mt-4 inline-block"
           >
-            ← Back to Pools
+            ← Back to Dashboard
           </Link>
         </div>
       </div>
@@ -409,6 +541,192 @@ export default function SessionDetails() {
           </dl>
         )}
       </div>
+
+      {/* Admin Actions - Lock Roster */}
+      {isOwner && !session.roster_locked && !isPast && (
+        <div className="mt-6 bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Admin Actions</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Locking the roster will confirm the session and generate payment requests for all guests.
+            The cost per guest will be fixed based on the current headcount.
+          </p>
+          <button
+            onClick={handleLockRoster}
+            disabled={lockingRoster || (costSummary?.total_players || 0) < session.min_players}
+            className="w-full sm:w-auto bg-[#3CBBB1] text-white py-2 px-6 rounded-md hover:bg-[#35a8a0] focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium"
+          >
+            {lockingRoster ? 'Locking Roster...' : '🔒 Lock Roster & Generate Payments'}
+          </button>
+          {(costSummary?.total_players || 0) < session.min_players && (
+            <p className="text-sm text-yellow-600 mt-2">
+              Cannot lock roster until minimum players ({session.min_players}) are committed.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Roster Locked Badge */}
+      {session.roster_locked && (
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <span className="text-blue-600">🔒</span>
+            <span className="font-medium text-blue-800">Roster Locked</span>
+          </div>
+          <p className="text-sm text-blue-700 mt-1">
+            The participant list and cost per guest are now fixed.
+          </p>
+        </div>
+      )}
+
+      {/* Payments Section (Admin Only, when roster locked) */}
+      {isOwner && session.roster_locked && (
+        <div className="mt-6 bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Payments</h2>
+            {paymentSummary && (
+              <div className="text-sm text-gray-600">
+                <span className="text-green-600 font-medium">${paymentSummary.total_paid.toFixed(2)}</span>
+                <span className="mx-1">collected</span>
+                {paymentSummary.pending_count > 0 ? (
+                  <span className="ml-2 text-yellow-600">
+                    ({paymentSummary.pending_count} pending)
+                  </span>
+                ) : (
+                  <span className="ml-2 text-green-600">✓ All resolved</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Payment Progress Bar */}
+          {paymentSummary && paymentSummary.payments_count > 0 && (
+            <div className="mb-6">
+              <div className="h-2 bg-gray-200 rounded-full overflow-hidden flex">
+                {/* Paid portion (green) */}
+                <div
+                  className="h-full bg-green-500 transition-all duration-300"
+                  style={{
+                    width: `${(paymentSummary.total_paid / paymentSummary.total_owed) * 100}%`,
+                  }}
+                />
+                {/* Forgiven portion (gray) */}
+                <div
+                  className="h-full bg-gray-400 transition-all duration-300"
+                  style={{
+                    width: `${(paymentSummary.total_forgiven / paymentSummary.total_owed) * 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Payments List */}
+          {payments.length === 0 ? (
+            <p className="text-gray-500 text-sm">No payments to track (admin plays free).</p>
+          ) : (
+            <div className="space-y-3">
+              {payments.map((payment) => (
+                <div
+                  key={payment.id}
+                  className={`p-4 rounded-lg border ${
+                    payment.status === 'paid'
+                      ? 'bg-green-50 border-green-200'
+                      : payment.status === 'forgiven'
+                      ? 'bg-gray-50 border-gray-200'
+                      : 'bg-white border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900">
+                          {payment.session_participants.players.name}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            payment.status === 'paid'
+                              ? 'bg-green-100 text-green-800'
+                              : payment.status === 'forgiven'
+                              ? 'bg-gray-100 text-gray-600'
+                              : payment.status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        <span className="font-medium">${payment.amount.toFixed(2)}</span>
+                        {payment.session_participants.players.venmo_account && (
+                          <span className="ml-2 text-gray-400">
+                            @{payment.session_participants.players.venmo_account.replace('@', '')}
+                          </span>
+                        )}
+                      </div>
+                      {payment.venmo_request_sent_at && payment.status === 'pending' && (
+                        <p className="mt-1 text-xs text-blue-600">
+                          📤 Request sent {new Date(payment.venmo_request_sent_at).toLocaleDateString()}
+                        </p>
+                      )}
+                      {payment.notes && (
+                        <p className="mt-1 text-xs text-gray-500 italic">{payment.notes}</p>
+                      )}
+                    </div>
+
+                    {/* Payment Actions */}
+                    <div className="flex items-center gap-2 ml-4">
+                      {payment.status === 'pending' && (
+                        <>
+                          {/* Venmo Link - Most Prominent */}
+                          {payment.venmo_payment_link && (
+                            <a
+                              href={payment.venmo_payment_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => {
+                                if (!payment.venmo_request_sent_at) {
+                                  handleMarkRequestSent(payment.id)
+                                }
+                              }}
+                              className="text-sm bg-[#008CFF] text-white px-3 py-1.5 rounded hover:bg-[#0074D4] transition font-medium flex items-center gap-1"
+                            >
+                              <span>💸</span> Request
+                            </a>
+                          )}
+                          <button
+                            onClick={() => handleMarkPaid(payment.id)}
+                            disabled={updatingPayment === payment.id}
+                            className="text-sm bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 disabled:opacity-50 transition"
+                          >
+                            {updatingPayment === payment.id ? '...' : '✓ Paid'}
+                          </button>
+                          <button
+                            onClick={() => handleForgivePayment(payment.id, payment.session_participants.players.name)}
+                            disabled={updatingPayment === payment.id}
+                            className="text-sm text-gray-500 hover:text-gray-700 px-2 disabled:opacity-50 transition"
+                            title="Forgive payment"
+                          >
+                            Forgive
+                          </button>
+                        </>
+                      )}
+                      {payment.status === 'paid' && payment.payment_date && (
+                        <span className="text-xs text-gray-500">
+                          {new Date(payment.payment_date).toLocaleDateString()}
+                        </span>
+                      )}
+                      {payment.status === 'forgiven' && (
+                        <span className="text-xs text-gray-500">Forgiven</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

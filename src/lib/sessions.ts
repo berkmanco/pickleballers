@@ -198,3 +198,173 @@ export async function getSessionCostSummary(sessionId: string): Promise<SessionC
   return data[0] as SessionCostSummary
 }
 
+/**
+ * Lock the roster for a session.
+ * This freezes the participant list and triggers payment creation.
+ * Admin only - called when confirming the session.
+ */
+export async function lockRoster(sessionId: string): Promise<Session> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({
+      roster_locked: true,
+      status: 'confirmed',
+    })
+    .eq('id', sessionId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as Session
+}
+
+/**
+ * Unlock the roster (admin only, for corrections)
+ */
+export async function unlockRoster(sessionId: string): Promise<Session> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({
+      roster_locked: false,
+    })
+    .eq('id', sessionId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as Session
+}
+
+/**
+ * Update session status
+ */
+export async function updateSessionStatus(
+  sessionId: string,
+  status: Session['status']
+): Promise<Session> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({ status })
+    .eq('id', sessionId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as Session
+}
+
+/**
+ * Get upcoming sessions the user is committed to
+ */
+export interface UserSession extends SessionWithPool {
+  participant_status: 'committed' | 'paid' | 'maybe'
+  is_admin: boolean
+}
+
+export async function getUserCommittedSessions(playerId: string): Promise<UserSession[]> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data, error } = await supabase
+    .from('session_participants')
+    .select(`
+      status,
+      is_admin,
+      sessions!inner (
+        *,
+        pools (
+          id,
+          name,
+          slug
+        )
+      )
+    `)
+    .eq('player_id', playerId)
+    .in('status', ['committed', 'paid'])
+    .gte('sessions.proposed_date', today)
+    .in('sessions.status', ['proposed', 'confirmed'])
+    .order('sessions(proposed_date)', { ascending: true })
+
+  if (error) throw error
+
+  // Transform the data structure
+  return (data || []).map((row: any) => ({
+    ...row.sessions,
+    participant_status: row.status,
+    is_admin: row.is_admin,
+  })) as UserSession[]
+}
+
+/**
+ * Get open sessions in user's pools that they haven't joined yet
+ */
+export async function getOpenSessionsToJoin(playerId: string): Promise<SessionWithPool[]> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+
+  // First get all pools the user is in
+  const { data: poolData, error: poolError } = await supabase
+    .from('pool_players')
+    .select('pool_id')
+    .eq('player_id', playerId)
+    .eq('is_active', true)
+
+  if (poolError) throw poolError
+  if (!poolData || poolData.length === 0) return []
+
+  const poolIds = poolData.map(p => p.pool_id)
+
+  // Get all upcoming sessions in those pools
+  const { data: sessions, error: sessionsError } = await supabase
+    .from('sessions')
+    .select(`
+      *,
+      pools (
+        id,
+        name,
+        slug
+      )
+    `)
+    .in('pool_id', poolIds)
+    .in('status', ['proposed', 'confirmed'])
+    .eq('roster_locked', false)  // Only open sessions
+    .gte('proposed_date', today)
+    .order('proposed_date', { ascending: true })
+    .order('proposed_time', { ascending: true })
+
+  if (sessionsError) throw sessionsError
+  if (!sessions || sessions.length === 0) return []
+
+  // Get sessions the user is already in
+  const { data: participations, error: partError } = await supabase
+    .from('session_participants')
+    .select('session_id')
+    .eq('player_id', playerId)
+    .in('status', ['committed', 'paid', 'maybe'])
+
+  if (partError) throw partError
+
+  const joinedSessionIds = new Set((participations || []).map(p => p.session_id))
+
+  // Filter out sessions user has already joined
+  return sessions.filter(s => !joinedSessionIds.has(s.id)) as SessionWithPool[]
+}
+
