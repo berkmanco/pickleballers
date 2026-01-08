@@ -100,10 +100,10 @@ export default function PoolDetails() {
             {error || 'Pool not found'}
           </p>
           <Link
-            to="/pools"
+            to="/dashboard"
             className="text-[#3CBBB1] hover:text-[#35a8a0] mt-2 inline-block"
           >
-            ← Back to Pools
+            ← Back to Dashboard
           </Link>
         </div>
       </div>
@@ -114,10 +114,10 @@ export default function PoolDetails() {
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
         <Link
-          to="/pools"
+          to="/dashboard"
           className="text-[#3CBBB1] hover:text-[#35a8a0] text-sm mb-4 inline-block"
         >
-          ← Back to Pools
+          ← Back to Dashboard
         </Link>
         <div className="flex items-start justify-between mt-2">
           <div>

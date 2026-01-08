@@ -85,10 +85,10 @@ export default function CreateSession() {
           <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
           <p className="text-red-700">{error}</p>
           <Link
-            to="/pools"
+            to="/dashboard"
             className="text-[#3CBBB1] hover:text-[#35a8a0] mt-4 inline-block"
           >
-            ← Back to Pools
+            ← Back to Dashboard
           </Link>
         </div>
       </div>

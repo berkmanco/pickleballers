@@ -156,7 +156,7 @@ export interface Player {
 // Link player record to user account (by email)
 // This is called after sign-in to connect the player record created during registration
 // Uses a SECURITY DEFINER function to bypass RLS (users can't see unlinked player records)
-export async function linkPlayerToUser(userId: string, email: string): Promise<string | null> {
+export async function linkPlayerToUser(_userId: string, email: string): Promise<string | null> {
   const { data: playerId, error } = await supabase.rpc('link_player_to_user', {
     p_email: email
   })
@@ -225,5 +225,35 @@ export async function getPoolPlayers(poolId: string) {
     ...pp.players,
     joined_at: pp.joined_at,
   })) as Player[]
+}
+
+// Get pool owner's player record (for Venmo account)
+export async function getPoolOwnerPlayer(poolId: string): Promise<Player | null> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  // Get pool owner ID
+  const { data: pool, error: poolError } = await supabase
+    .from('pools')
+    .select('owner_id')
+    .eq('id', poolId)
+    .single()
+
+  if (poolError) throw poolError
+  if (!pool?.owner_id) return null
+
+  // Get owner's player record
+  const { data: player, error: playerError } = await supabase
+    .from('players')
+    .select('*')
+    .eq('user_id', pool.owner_id)
+    .single()
+
+  if (playerError && playerError.code !== 'PGRST116') {
+    throw playerError
+  }
+
+  return player as Player | null
 }
 

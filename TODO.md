@@ -1,8 +1,23 @@
 - [ ] auto-login after registration (needs an egde function.  later)
 - [x] player not linked to pool after login
-- [ ] branding - dinkup.link
-- [ ] security audit / warnings
+- [x] branding - dinkup.link
+- [x] security audit / warnings
 - [ ] test coverage
-- [ ] refactor, simplify code, clean up
-  - [ ] collapse all migrations before shipping to production
-  - [ ] push v1 to prod (set up vercel)
+- [x] refactor, simplify code, clean up
+  - [x] collapse all migrations before shipping to production
+  - [x] push v1 to prod (set up vercel)
+- [ ] custom design for supabase auth emails (need custom SMTP server)
+- [ ] meta tags showing icon/logo for sharing via imessage (possibly fixed?)
+- [x] dashboard should show upcoming committed sessions, and pool sessions i can opt in for
+- [ ] notifications (email, sms)
+- [ ] UI - Add players to multiple pools (dropdown of existing players, add new, create link)
+- [x] After first login go to dashboard
+- [ ] Mobile UI overflow issues
+- [ ] Too much white space on homepage on mobile
+- [x] payment v1
+
+
+- [ ] CourtReserve integration (scraping web, does API exist?)
+  - [ ] ability to look at open courts on a date
+  - [ ] ability to book a court on a date
+- [ ] Venmo payment tracking (scraping web, email?)

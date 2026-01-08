@@ -32,45 +32,29 @@
 - Sensitive info (email, phone, Venmo) hidden from non-admins
 - Proper RLS policies for all tables
 
+### 6. Payment Tracking
+- Lock roster button for admins (confirms session)
+- Payment records created automatically when roster locks
+- Cost per guest calculated and frozen at lock time
+- Venmo payment links generated for each guest
+- Payment status tracking (pending, paid, forgiven)
+- Admin can mark payments as paid or forgiven
+- Payment summary with progress bar
+- Payment list on session details page
+
 ---
 
-## Current Feature: Payment Tracking 🚧
-
-### Goal
-Track payments from guests, generate Venmo links, provide admin dashboard.
-
-### Key Timing
-- Payment records created when **roster locks (24h before session)**
-- Cost calculated based on final headcount
-- Rate is LOCKED at this point (no recalculation)
+## Current Feature: Notifications 🚧
 
 ### Planned Features
-1. **Create payment records** at roster lock (24h before)
-2. **Calculate final cost** based on committed players
-3. **Generate Venmo links** for each guest
-4. **Admin dashboard** showing payment status
-5. **Mark payments** as received/forgiven
-
-### Database
-`payments` table already exists with:
-- `session_participant_id` (FK)
-- `amount`
-- `status` (pending, paid, refunded, forgiven)
-- `venmo_payment_link`
-
-### Questions to Resolve
-- Trigger: Manual "lock roster" button vs automatic at 24h?
-- UI: Separate payments page vs on session details?
-
----
-
-## Future Features 📋
-
-### Notifications
 - Email notifications (Resend)
 - SMS notifications (Twilio)
 - Session reminders
 - Payment reminders
+
+---
+
+## Future Features 📋
 
 ### Waitlist Auto-Promotion
 - When someone drops, auto-promote from waitlist
