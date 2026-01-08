@@ -21,3 +21,13 @@
   - [ ] ability to look at open courts on a date
   - [ ] ability to book a court on a date
 - [ ] Venmo payment tracking (scraping web, email?)
+   - [ ] in order to understand payments to/from my venmo account, i can forward venmo emails to an account that can be scraped and updated.  what might that look like?
+
+
+vercel upgrade?
+  vercel environments
+supabase upgrade?
+twilio
+mail account
+
+infra costs?
