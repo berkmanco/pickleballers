@@ -42,15 +42,24 @@
 - Payment summary with progress bar
 - Payment list on session details page
 
+### 7. Notifications
+- Email notifications via Resend
+- SMS notifications via Twilio (opt-in)
+- Notification types:
+  - New session created → email to pool members
+  - Roster locked → payment request email to guests
+  - Payment reminder → email to guests with pending payments
+  - Session reminder (24h) → email + optional SMS
+  - Waitlist promoted → email + SMS
+- Notification preferences in Settings page
+- Notification log for auditing
+
 ---
 
-## Current Feature: Notifications 🚧
+## Current Feature: Session Reminders 🚧
 
-### Planned Features
-- Email notifications (Resend)
-- SMS notifications (Twilio)
-- Session reminders
-- Payment reminders
+### Planned
+- Automated 24h session reminders (cron job / scheduled function)
 
 ---
 

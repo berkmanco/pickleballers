@@ -11,6 +11,7 @@ import AuthCallback from './pages/AuthCallback'
 import Register from './pages/Register'
 import CreateSession from './pages/CreateSession'
 import SessionDetails from './pages/SessionDetails'
+import Settings from './pages/Settings'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -71,6 +72,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SessionDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
                 </ProtectedRoute>
               }
             />

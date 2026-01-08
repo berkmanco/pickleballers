@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getPool, isPoolOwner, Pool } from '../lib/pools'
 import { createSession, CreateSessionData } from '../lib/sessions'
+import { notifySessionCreated } from '../lib/notifications'
 
 export default function CreateSession() {
   const [searchParams] = useSearchParams()
@@ -62,6 +63,10 @@ export default function CreateSession() {
       setSubmitting(true)
       setError(null)
       const session = await createSession(formData)
+      
+      // Notify pool members about the new session (fire and forget)
+      notifySessionCreated(session.id).catch(console.error)
+      
       navigate(`/s/${session.id}`)
     } catch (err: any) {
       setError(err.message || 'Failed to create session')

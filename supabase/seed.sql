@@ -215,19 +215,20 @@ values (
 -- PLAYERS (must be created BEFORE pools so trigger finds records)
 -- ============================================
 
+-- Phone numbers stored in E.164 format: +1XXXXXXXXXX (required for Twilio SMS)
 insert into players (id, user_id, name, phone, email, venmo_account, notification_preferences, is_active) values
-  -- Mike - linked to auth user, owns Weekend Warriors & Friends & Family
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-0000-0000-000000000000', 'Mike Berkman', '555-0001', 'mike@berkman.co', 'berkman', '{"email": true, "sms": true}', true),
+  -- Mike - linked to auth user, owns Weekend Warriors & Friends & Family (real phone for testing)
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-0000-0000-000000000000', 'Mike Berkman', '+16145376574', 'mike@berkman.co', 'berkman', '{"email": true, "sms": true}', true),
   -- Erik - linked to auth user, regular player who has paid
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'bbbbbbbb-0000-0000-0000-000000000000', 'Erik Berkman', '555-0002', 'erik@example.com', 'erik-pb', '{"email": true, "sms": false}', true),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'bbbbbbbb-0000-0000-0000-000000000000', 'Erik Berkman', '+15555550002', 'erik@example.com', 'erik-pb', '{"email": true, "sms": false}', true),
   -- Sarah - linked to auth user, owns Couples & Competitive pools (uses berkman venmo for testing)
-  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'cccccccc-0000-0000-0000-000000000000', 'Sarah Johnson', '555-0003', 'sarah@example.com', 'berkman', '{"email": true, "sms": true}', true),
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'cccccccc-0000-0000-0000-000000000000', 'Sarah Johnson', '+15555550003', 'sarah@example.com', 'berkman', '{"email": true, "sms": true}', true),
   -- John - linked to auth user, has pending payment
-  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'dddddddd-0000-0000-0000-000000000000', 'John Smith', '555-0004', 'john@example.com', 'john-pb', '{"email": true, "sms": false}', true),
-  ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', null, 'Lisa Chen', '555-0005', 'lisa@example.com', 'lisa-pb', '{"email": true, "sms": true}', true),
-  ('ffffffff-ffff-ffff-ffff-ffffffffffff', null, 'Tom Wilson', '555-0006', 'tom@example.com', 'tom-pb', '{"email": false, "sms": true}', true),
-  ('11111111-2222-3333-4444-555555555555', null, 'Amy Davis', '555-0007', 'amy@example.com', 'amy-pb', '{"email": true, "sms": false}', true),
-  ('22222222-3333-4444-5555-666666666666', null, 'Bob Martinez', '555-0008', 'bob@example.com', 'bob-pb', '{"email": true, "sms": true}', true);
+  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'dddddddd-0000-0000-0000-000000000000', 'John Smith', '+15555550004', 'john@example.com', 'john-pb', '{"email": true, "sms": false}', true),
+  ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', null, 'Lisa Chen', '+15555550005', 'lisa@example.com', 'lisa-pb', '{"email": true, "sms": true}', true),
+  ('ffffffff-ffff-ffff-ffff-ffffffffffff', null, 'Tom Wilson', '+15555550006', 'tom@example.com', 'tom-pb', '{"email": false, "sms": true}', true),
+  ('11111111-2222-3333-4444-555555555555', null, 'Amy Davis', '+15555550007', 'amy@example.com', 'amy-pb', '{"email": true, "sms": false}', true),
+  ('22222222-3333-4444-5555-666666666666', null, 'Bob Martinez', '+15555550008', 'bob@example.com', 'bob-pb', '{"email": true, "sms": true}', true);
 
 -- ============================================
 -- POOLS (different owners to test non-owner experience)

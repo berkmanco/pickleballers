@@ -21,6 +21,7 @@ import {
   PaymentWithParticipant,
   PaymentSummary,
 } from '../lib/payments'
+import { notifyRosterLocked, notifyPaymentReminder } from '../lib/notifications'
 
 export default function SessionDetails() {
   const { id } = useParams<{ id: string }>()
@@ -41,6 +42,8 @@ export default function SessionDetails() {
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | null>(null)
   const [lockingRoster, setLockingRoster] = useState(false)
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null)
+  const [sendingReminder, setSendingReminder] = useState(false)
+  const [notificationStatus, setNotificationStatus] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id || !user) return
@@ -195,10 +198,48 @@ export default function SessionDetails() {
 
       // Reload payments
       await loadPayments(session.id)
+
+      // Send notification emails to guests
+      try {
+        const result = await notifyRosterLocked(session.id)
+        if (result.success) {
+          setNotificationStatus(`✓ Payment emails sent to ${result.sent} guest(s)`)
+        } else {
+          setNotificationStatus(`⚠️ Some emails failed to send: ${result.error}`)
+        }
+      } catch (notifyErr) {
+        console.error('Failed to send notifications:', notifyErr)
+        // Don't fail the whole operation, just log it
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to lock roster')
     } finally {
       setLockingRoster(false)
+    }
+  }
+
+  async function handleSendReminder() {
+    if (!session || sendingReminder) return
+
+    if (!confirm('Send a payment reminder to all guests with pending payments?')) {
+      return
+    }
+
+    try {
+      setSendingReminder(true)
+      setNotificationStatus(null)
+      
+      const result = await notifyPaymentReminder(session.id)
+      
+      if (result.success) {
+        setNotificationStatus(`✓ Reminder sent to ${result.sent} guest(s)`)
+      } else {
+        setNotificationStatus(`⚠️ Failed to send reminders: ${result.error}`)
+      }
+    } catch (err: any) {
+      setNotificationStatus(`⚠️ Failed to send reminders: ${err.message}`)
+    } finally {
+      setSendingReminder(false)
     }
   }
 
@@ -583,20 +624,42 @@ export default function SessionDetails() {
         <div className="mt-6 bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Payments</h2>
-            {paymentSummary && (
-              <div className="text-sm text-gray-600">
-                <span className="text-green-600 font-medium">${paymentSummary.total_paid.toFixed(2)}</span>
-                <span className="mx-1">collected</span>
-                {paymentSummary.pending_count > 0 ? (
-                  <span className="ml-2 text-yellow-600">
-                    ({paymentSummary.pending_count} pending)
-                  </span>
-                ) : (
-                  <span className="ml-2 text-green-600">✓ All resolved</span>
-                )}
-              </div>
-            )}
+            <div className="flex items-center gap-4">
+              {paymentSummary && paymentSummary.pending_count > 0 && (
+                <button
+                  onClick={handleSendReminder}
+                  disabled={sendingReminder}
+                  className="text-sm bg-yellow-500 text-white px-3 py-1.5 rounded hover:bg-yellow-600 disabled:opacity-50 transition font-medium"
+                >
+                  {sendingReminder ? 'Sending...' : '📧 Send Reminder'}
+                </button>
+              )}
+              {paymentSummary && (
+                <div className="text-sm text-gray-600">
+                  <span className="text-green-600 font-medium">${paymentSummary.total_paid.toFixed(2)}</span>
+                  <span className="mx-1">collected</span>
+                  {paymentSummary.pending_count > 0 ? (
+                    <span className="ml-2 text-yellow-600">
+                      ({paymentSummary.pending_count} pending)
+                    </span>
+                  ) : (
+                    <span className="ml-2 text-green-600">✓ All resolved</span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Notification Status */}
+          {notificationStatus && (
+            <div className={`mb-4 p-3 rounded-lg text-sm ${
+              notificationStatus.startsWith('✓') 
+                ? 'bg-green-50 text-green-700'
+                : 'bg-yellow-50 text-yellow-700'
+            }`}>
+              {notificationStatus}
+            </div>
+          )}
 
           {/* Payment Progress Bar */}
           {paymentSummary && paymentSummary.payments_count > 0 && (
