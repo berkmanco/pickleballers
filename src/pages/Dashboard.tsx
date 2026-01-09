@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useEffect, useState } from 'react'
 import { getPools, Pool, getCurrentPlayerId } from '../lib/pools'
 import { getUserCommittedSessions, getOpenSessionsToJoin, UserSession, SessionWithPool } from '../lib/sessions'
-import { getUserPendingPayments, UserPendingPayment } from '../lib/payments'
+import { getUserPendingPayments, UserPendingPayment, generateVenmoPayLink } from '../lib/payments'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -155,26 +155,35 @@ export default function Dashboard() {
                   💸 Payments Due
                 </h3>
                 <div className="space-y-2">
-                  {pendingPayments.slice(0, 3).map((payment) => (
-                    <div key={payment.id} className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-gray-900 text-sm">
-                          ${payment.amount.toFixed(2)}
+                  {pendingPayments.slice(0, 3).map((payment) => {
+                    // Generate pay link dynamically using admin's Venmo
+                    const payLink = payment.adminVenmoAccount ? generateVenmoPayLink(
+                      payment.adminVenmoAccount,
+                      payment.amount,
+                      `Pickleball - ${payment.session?.pools?.name || 'Session'} #dinkup-${payment.id}`
+                    ) : null
+                    
+                    return (
+                      <div key={payment.id} className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900 text-sm">
+                            ${payment.amount.toFixed(2)}
+                          </div>
+                          <div className="text-xs text-gray-500">{payment.session?.pools?.name || 'Unknown'}</div>
                         </div>
-                        <div className="text-xs text-gray-500">{payment.session?.pools?.name || 'Unknown'}</div>
+                        {payLink && (
+                          <a
+                            href={payLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs bg-[#008CFF] text-white px-2 py-1 rounded hover:bg-[#0074D4] transition"
+                          >
+                            Pay via Venmo
+                          </a>
+                        )}
                       </div>
-                      {payment.venmo_payment_link && (
-                        <a
-                          href={payment.venmo_payment_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs bg-[#008CFF] text-white px-2 py-1 rounded hover:bg-[#0074D4] transition"
-                        >
-                          Pay via Venmo
-                        </a>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                   {pendingPayments.length > 3 && (
                     <p className="text-xs text-yellow-700 pt-1">
                       +{pendingPayments.length - 3} more

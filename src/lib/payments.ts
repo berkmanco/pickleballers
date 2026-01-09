@@ -35,15 +35,16 @@ export interface PaymentWithParticipant extends Payment {
 }
 
 /**
- * Generate a Venmo payment link
- * Format: venmo://paycharge?txn=pay&recipients=USERNAME&amount=AMOUNT&note=NOTE
- * Web fallback: https://venmo.com/USERNAME?txn=pay&amount=AMOUNT&note=NOTE
+ * Generate a Venmo payment REQUEST link (admin requesting money FROM guest)
+ * Format: https://venmo.com/GUEST_USERNAME?txn=charge&amount=AMOUNT&note=NOTE
+ * 
+ * txn=charge means "request money from this person"
  * 
  * Includes a hashtag with the payment ID for automatic reconciliation:
  * #dinkup-{payment_id}
  */
 export function generateVenmoLink(
-  adminVenmoAccount: string,
+  guestVenmoAccount: string,
   amount: number,
   sessionDate: string,
   sessionTime: string,
@@ -71,10 +72,27 @@ export function generateVenmoLink(
     noteText += ` #dinkup-${paymentId}`
   }
   const note = encodeURIComponent(noteText)
-  const cleanUsername = adminVenmoAccount.replace('@', '')
+  const cleanUsername = guestVenmoAccount.replace('@', '')
   
-  // Use web link for better cross-platform support
-  return `https://venmo.com/${cleanUsername}?txn=pay&amount=${amount.toFixed(2)}&note=${note}`
+  // txn=charge requests money FROM this user (vs txn=pay which pays them)
+  return `https://venmo.com/${cleanUsername}?txn=charge&amount=${amount.toFixed(2)}&note=${note}`
+}
+
+/**
+ * Generate a Venmo PAY link (guest paying the admin)
+ * Used by players on their dashboard to pay what they owe.
+ * Uses the same hashtag as the request link for reconciliation.
+ */
+export function generateVenmoPayLink(
+  adminVenmoAccount: string,
+  amount: number,
+  note: string
+): string {
+  const cleanUsername = adminVenmoAccount.replace('@', '')
+  const encodedNote = encodeURIComponent(note)
+  
+  // txn=pay means "pay this person"
+  return `https://venmo.com/${cleanUsername}?txn=pay&amount=${amount.toFixed(2)}&note=${encodedNote}`
 }
 
 /**
@@ -134,10 +152,10 @@ export async function getPayment(paymentId: string): Promise<Payment | null> {
 /**
  * Create payment records for all committed guests when roster locks.
  * This should only be called by the admin when locking the roster.
+ * Generates Venmo REQUEST links (admin requesting money FROM each guest).
  */
 export async function createPaymentsForSession(
   sessionId: string,
-  adminVenmoAccount: string,
   sessionDate: string,
   sessionTime: string,
   poolName: string
@@ -179,21 +197,24 @@ export async function createPaymentsForSession(
 
   // Create payment records for each guest
   // Generate UUIDs client-side so we can include them in Venmo links for auto-matching
-  const payments = participants.map((participant: { id: string }) => {
+  const payments = participants.map((participant: { id: string; players: { venmo_account: string | null } }) => {
     const paymentId = crypto.randomUUID()
+    const guestVenmo = participant.players?.venmo_account
+    
     return {
       id: paymentId,
       session_participant_id: participant.id,
       amount: costSummary.guest_cost,
       payment_method: 'venmo' as const,
-      venmo_payment_link: generateVenmoLink(
-        adminVenmoAccount,
+      // Generate request link if guest has Venmo, otherwise null
+      venmo_payment_link: guestVenmo ? generateVenmoLink(
+        guestVenmo,
         costSummary.guest_cost,
         sessionDate,
         sessionTime,
         poolName,
         paymentId // Include payment ID for auto-matching
-      ),
+      ) : null,
       status: 'pending' as PaymentStatus,
     }
   })
@@ -334,12 +355,15 @@ export interface UserPendingPayment extends Payment {
       id: string
       name: string
       slug: string
+      owner_id: string
     }
   }
+  // Admin's Venmo for generating pay links (fetched separately)
+  adminVenmoAccount?: string
 }
 
 /**
- * Get all pending payments for a player
+ * Get all pending payments for a player, including admin's Venmo for pay links
  */
 export async function getUserPendingPayments(playerId: string): Promise<UserPendingPayment[]> {
   if (!supabase) {
@@ -359,7 +383,8 @@ export async function getUserPendingPayments(playerId: string): Promise<UserPend
           pools (
             id,
             name,
-            slug
+            slug,
+            owner_id
           )
         )
       )
@@ -371,11 +396,33 @@ export async function getUserPendingPayments(playerId: string): Promise<UserPend
   if (error) throw error
 
   // Transform the nested structure
-  // Note: session_participants is a single object (not array) due to !inner join on FK
-  return (data || []).map((row: any) => ({
+  const payments = (data || []).map((row: any) => ({
     ...row,
     session: row.session_participants?.sessions,
     session_participants: undefined,
   })).filter((p: any) => p.session?.pools) as UserPendingPayment[]
+
+  // Get unique owner IDs and fetch their Venmo accounts
+  const ownerIds = [...new Set(payments.map(p => p.session.pools.owner_id))]
+  
+  if (ownerIds.length > 0) {
+    const { data: ownerPlayers } = await supabase
+      .from('players')
+      .select('user_id, venmo_account')
+      .in('user_id', ownerIds)
+
+    // Create a map of owner_id -> venmo_account
+    const venmoMap = new Map<string, string>()
+    ownerPlayers?.forEach((p: { user_id: string; venmo_account: string }) => {
+      if (p.venmo_account) venmoMap.set(p.user_id, p.venmo_account)
+    })
+
+    // Attach admin's Venmo to each payment
+    payments.forEach(p => {
+      p.adminVenmoAccount = venmoMap.get(p.session.pools.owner_id)
+    })
+  }
+
+  return payments
 }
 

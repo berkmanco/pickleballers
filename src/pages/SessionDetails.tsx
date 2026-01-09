@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getSession, SessionWithPool, getSessionCostSummary, SessionCostSummary, lockRoster } from '../lib/sessions'
-import { isPoolOwner, getCurrentPlayerId, getPoolOwnerPlayer } from '../lib/pools'
+import { isPoolOwner, getCurrentPlayerId } from '../lib/pools'
 import {
   getSessionParticipants,
   optInToSession,
@@ -178,21 +178,13 @@ export default function SessionDetails() {
       setLockingRoster(true)
       setError(null)
 
-      // Get admin's Venmo account for payment links
-      const adminPlayer = await getPoolOwnerPlayer(session.pool_id)
-      if (!adminPlayer?.venmo_account) {
-        setError('Admin Venmo account not set. Please update your profile.')
-        return
-      }
-
       // Lock the roster
       const updatedSession = await lockRoster(session.id)
       setSession({ ...session, ...updatedSession })
 
-      // Create payment records
+      // Create payment records (links use each guest's Venmo for request)
       await createPaymentsForSession(
         session.id,
-        adminPlayer.venmo_account,
         session.proposed_date,
         session.proposed_time,
         session.pools.name
