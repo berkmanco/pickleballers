@@ -13,7 +13,6 @@
 - [ ] CourtReserve integration (scraping web, does API exist?)
   - [ ] ability to look at open courts on a date
   - [ ] ability to book a court on a date
-- [ ] Venmo payment tracking (scraping web, email?)
 - [ ] PWA (installable app, offline support)
 - [ ] Admin can set session costs or make free (outdoor courts)
 - [ ] Multi-use registration links (single link, multiple signups)
@@ -46,3 +45,4 @@
 - [x] Court numbers field for sessions
 - [x] Phone number display formatting
 - [x] Cleaned up player list UI (removed Venmo, stacked info)
+- [x] Venmo email parser (auto-match payments via Gmail → Cloudflare → Supabase)
