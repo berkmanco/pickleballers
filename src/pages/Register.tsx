@@ -236,17 +236,20 @@ export default function Register() {
             >
               Venmo Account <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              id="venmo_account"
-              required
-              value={formData.venmo_account}
-              onChange={(e) =>
-                setFormData({ ...formData, venmo_account: e.target.value })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
-              placeholder="@your-venmo-username"
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">@</span>
+              <input
+                type="text"
+                id="venmo_account"
+                required
+                value={formData.venmo_account}
+                onChange={(e) =>
+                  setFormData({ ...formData, venmo_account: e.target.value.replace('@', '') })
+                }
+                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
+                placeholder="your-venmo-username"
+              />
+            </div>
           </div>
 
           <div className="pt-2">

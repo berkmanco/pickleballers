@@ -1,8 +1,13 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Home() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+
+  // Redirect authenticated users to dashboard
+  if (!loading && user) {
+    return <Navigate to="/dashboard" replace />
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#2D3640]">
