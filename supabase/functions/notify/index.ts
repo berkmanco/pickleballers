@@ -49,7 +49,8 @@ interface Player {
 interface Session {
   id: string;
   proposed_date: string;
-  start_time: string;
+  proposed_time: string;
+  court_location?: string;
   pool: {
     id: string;
     name: string;
@@ -141,7 +142,7 @@ async function notifySessionCreated(supabase: ReturnType<typeof createClient>, s
   // Get session details with pool
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("id, proposed_date, start_time, pool:pools(id, name)")
+    .select("id, proposed_date, proposed_time, pool:pools(id, name)")
     .eq("id", sessionId)
     .single();
 
@@ -158,7 +159,7 @@ async function notifySessionCreated(supabase: ReturnType<typeof createClient>, s
 
   const results = { sent: 0, failed: 0, errors: [] as string[] };
   const sessionDate = formatDate(session.proposed_date);
-  const sessionTime = formatTime(session.start_time);
+  const sessionTime = formatTime(session.proposed_time);
 
   for (const pp of poolPlayers || []) {
     const player = pp.player as Player;
@@ -198,7 +199,7 @@ async function notifyRosterLocked(supabase: ReturnType<typeof createClient>, ses
   // Get session with pool info
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("id, proposed_date, start_time, pool:pools(id, name)")
+    .select("id, proposed_date, proposed_time, pool:pools(id, name)")
     .eq("id", sessionId)
     .single();
 
@@ -220,7 +221,7 @@ async function notifyRosterLocked(supabase: ReturnType<typeof createClient>, ses
 
   const results = { sent: 0, failed: 0, errors: [] as string[] };
   const sessionDate = formatDate(session.proposed_date);
-  const sessionTime = formatTime(session.start_time);
+  const sessionTime = formatTime(session.proposed_time);
 
   for (const payment of payments || []) {
     const player = (payment.session_participant as { player: Player })?.player;
@@ -262,7 +263,7 @@ async function notifyRosterLocked(supabase: ReturnType<typeof createClient>, ses
 async function notifyPaymentReminder(supabase: ReturnType<typeof createClient>, sessionId: string, customMessage?: string) {
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("id, proposed_date, start_time, pool:pools(id, name)")
+    .select("id, proposed_date, proposed_time, pool:pools(id, name)")
     .eq("id", sessionId)
     .single();
 
@@ -319,7 +320,7 @@ async function notifyPaymentReminder(supabase: ReturnType<typeof createClient>, 
 async function notifySessionReminder(supabase: ReturnType<typeof createClient>, sessionId: string) {
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("id, proposed_date, start_time, location, pool:pools(id, name)")
+    .select("id, proposed_date, proposed_time, court_location, pool:pools(id, name)")
     .eq("id", sessionId)
     .single();
 
@@ -336,7 +337,7 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
 
   const results = { sent: 0, failed: 0, errors: [] as string[] };
   const sessionDate = formatDate(session.proposed_date);
-  const sessionTime = formatTime(session.start_time);
+  const sessionTime = formatTime(session.proposed_time);
 
   for (const participant of participants || []) {
     const player = participant.player as Player;
@@ -353,7 +354,7 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
             <p style="margin: 0;"><strong>🏓 Pool:</strong> ${session.pool.name}</p>
             <p style="margin: 8px 0 0 0;"><strong>📅 Date:</strong> ${sessionDate}</p>
             <p style="margin: 8px 0 0 0;"><strong>⏰ Time:</strong> ${sessionTime}</p>
-            ${session.location ? `<p style="margin: 8px 0 0 0;"><strong>📍 Location:</strong> ${session.location}</p>` : ""}
+            ${session.court_location ? `<p style="margin: 8px 0 0 0;"><strong>📍 Location:</strong> ${session.court_location}</p>` : ""}
           </div>
           <p>See you on the court!</p>
         `,
@@ -392,7 +393,7 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
 async function notifyWaitlistPromoted(supabase: ReturnType<typeof createClient>, sessionId: string, playerId: string) {
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("id, proposed_date, start_time, pool:pools(id, name)")
+    .select("id, proposed_date, proposed_time, pool:pools(id, name)")
     .eq("id", sessionId)
     .single();
 
@@ -408,7 +409,7 @@ async function notifyWaitlistPromoted(supabase: ReturnType<typeof createClient>,
 
   const results = { sent: 0, failed: 0, errors: [] as string[] };
   const sessionDate = formatDate(session.proposed_date);
-  const sessionTime = formatTime(session.start_time);
+  const sessionTime = formatTime(session.proposed_time);
 
   // Send email
   if (player.email && player.notification_preferences?.email) {
@@ -489,9 +490,10 @@ async function sendEmail(to: string, subject: string, html: string) {
 async function sendSms(to: string, message: string) {
   const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
   const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
-  const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
+  // Support both secret names for backwards compatibility
+  const TWILIO_FROM_NUMBER = Deno.env.get("TWILIO_FROM_NUMBER") || Deno.env.get("TWILIO_PHONE_NUMBER");
 
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER) {
     throw new Error("Twilio credentials not configured");
   }
 
@@ -510,7 +512,7 @@ async function sendSms(to: string, message: string) {
       },
       body: new URLSearchParams({
         To: formattedPhone,
-        From: TWILIO_PHONE_NUMBER,
+        From: TWILIO_FROM_NUMBER,
         Body: message,
       }),
     }
