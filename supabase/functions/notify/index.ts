@@ -338,6 +338,17 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
   const results = { sent: 0, failed: 0, errors: [] as string[] };
   const sessionDate = formatDate(session.proposed_date);
   const sessionTime = formatTime(session.proposed_time);
+  
+  // Determine if session is today or tomorrow
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const sessionDateObj = new Date(session.proposed_date + "T00:00:00");
+  const diffDays = Math.round((sessionDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const isToday = diffDays === 0;
+  const isTomorrow = diffDays === 1;
+  
+  const timeWord = isToday ? "today" : isTomorrow ? "tomorrow" : `on ${sessionDate}`;
+  const title = isToday ? "Game Day! 🏓" : isTomorrow ? "See You Tomorrow! 🏓" : "Session Reminder 🏓";
 
   for (const participant of participants || []) {
     const player = participant.player as Player;
@@ -345,11 +356,11 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
     // Send email if enabled
     if (player.email && player.notification_preferences?.email) {
       const html = emailTemplate({
-        title: "See You Tomorrow! 🏓",
-        preheader: `${session.pool.name} session tomorrow at ${sessionTime}`,
+        title,
+        preheader: `${session.pool.name} session ${timeWord} at ${sessionTime}`,
         body: `
           <p>Hey ${getFirstName(player.name)}!</p>
-          <p>Just a reminder - you're playing tomorrow!</p>
+          <p>Just a reminder - you're playing ${timeWord}!</p>
           <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
             <p style="margin: 0;"><strong>🏓 Pool:</strong> ${session.pool.name}</p>
             <p style="margin: 8px 0 0 0;"><strong>📅 Date:</strong> ${sessionDate}</p>
@@ -363,7 +374,8 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
       });
 
       try {
-        await sendEmail(player.email, `Tomorrow: ${session.pool.name} at ${sessionTime}`, html);
+        const subjectPrefix = isToday ? "Today" : isTomorrow ? "Tomorrow" : sessionDate;
+        await sendEmail(player.email, `${subjectPrefix}: ${session.pool.name} at ${sessionTime}`, html);
         results.sent++;
         await logNotification(supabase, "session_reminder", sessionId, player.id, "email", true);
       } catch (err) {
@@ -374,7 +386,7 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
 
     // Send SMS if enabled and phone exists
     if (player.phone && player.notification_preferences?.sms) {
-      const smsMessage = `🏓 DinkUp Reminder: ${session.pool.name} tomorrow at ${sessionTime}. See you on the court!`;
+      const smsMessage = `🏓 DinkUp Reminder: ${session.pool.name} ${timeWord} at ${sessionTime}. See you on the court!`;
       
       try {
         await sendSms(player.phone, smsMessage);
