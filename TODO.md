@@ -9,6 +9,11 @@
 - [ ] UI - Add players to multiple pools (dropdown of existing players, add new, create link)
 
 ### Future / Exploration
+- [ ] Automated tests for notifications (edge function smoke tests)
+- [ ] Delete session feature
+- [ ] Unlock session feature
+- [ ] Add existing player to session (without re-registration)
+- [ ] Dynamic OG meta tags for session links
 - [ ] CourtReserve integration (scraping web, does API exist?)
   - [ ] ability to look at open courts on a date
   - [ ] ability to book a court on a date
@@ -20,6 +25,10 @@
   - [ ] Notify me when my pool has a new session
   - [ ] Notify me before a session starts
   - [ ] Notify me when I have payments due
+
+### Known Issues
+- [ ] Safari magic link login not working
+- [ ] Gmail mobile → Chrome redirect fails to log in
 
 ---
 
