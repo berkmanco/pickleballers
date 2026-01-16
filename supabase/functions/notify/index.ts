@@ -472,6 +472,13 @@ async function notifyWaitlistPromoted(supabase: ReturnType<typeof createClient>,
 // HELPERS
 // ============================================
 
+// Rate limit delay for Resend free tier (max 2 emails/second)
+const RATE_LIMIT_DELAY_MS = 600; // 600ms between emails = ~1.6 emails/sec (safe margin)
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function sendEmail(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) {
     throw new Error("RESEND_API_KEY not configured");
@@ -495,6 +502,9 @@ async function sendEmail(to: string, subject: string, html: string) {
     const error = await response.json();
     throw new Error(error.message || "Failed to send email");
   }
+
+  // Rate limit: wait before allowing next email
+  await sleep(RATE_LIMIT_DELAY_MS);
 
   return response.json();
 }
