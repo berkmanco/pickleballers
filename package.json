@@ -8,6 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite build && vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:notifications": "vitest run tests/notifications.test.ts",
     "db:push": "supabase db push",
     "db:diff": "supabase db diff",
     "db:migration": "supabase migration new",
@@ -18,7 +21,6 @@
     "supabase:reset": "supabase db reset"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.89.0",
     "@vercel/analytics": "^1.6.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@supabase/supabase-js": "^2.90.1",
     "@tailwindcss/vite": "^4.1.18",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
@@ -37,6 +40,7 @@
     "tailwindcss": "^4.1.18",
     "typescript": "^5.7.2",
     "vite": "^7.2.4",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^4.0.17"
   }
 }
