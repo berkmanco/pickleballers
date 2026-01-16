@@ -107,15 +107,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <div className="py-6 border-t border-white/10">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <Link to="/terms" className="text-white/50 hover:text-white/80 text-sm transition">
-            Terms & Privacy
-          </Link>
-        </div>
-      </div>
     </div>
   )
 }

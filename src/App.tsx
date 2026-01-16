@@ -13,6 +13,7 @@ import CreateSession from './pages/CreateSession'
 import SessionDetails from './pages/SessionDetails'
 import Settings from './pages/Settings'
 import Terms from './pages/Terms'
+import RegisterDemo from './pages/RegisterDemo'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -86,6 +87,7 @@ function App() {
             />
             <Route path="terms" element={<Terms />} />
             <Route path="privacy" element={<Terms />} />
+            <Route path="register-preview" element={<RegisterDemo />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
