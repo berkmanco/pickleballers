@@ -8,6 +8,8 @@ import {
   optInToSession,
   optOutOfSession,
   getCurrentPlayerStatus,
+  getPoolPlayersNotInSession,
+  addPlayerToSession,
   SessionParticipantWithPlayer,
   ParticipantStatus,
 } from '../lib/sessionParticipants'
@@ -49,6 +51,11 @@ export default function SessionDetails() {
   // Session management state
   const [unlockingRoster, setUnlockingRoster] = useState(false)
   const [deletingSession, setDeletingSession] = useState(false)
+  
+  // Add player state
+  const [availablePlayers, setAvailablePlayers] = useState<{ id: string; name: string }[]>([])
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string>('')
+  const [addingPlayer, setAddingPlayer] = useState(false)
 
   useEffect(() => {
     if (!id || !user) return
@@ -70,6 +77,12 @@ export default function SessionDetails() {
 
         // Load participants
         await loadParticipants(sessionData.id, playerId)
+
+        // Load available players for admin (to add players)
+        if (owner) {
+          const players = await getPoolPlayersNotInSession(sessionData.pool_id, sessionData.id)
+          setAvailablePlayers(players)
+        }
 
         // Load cost summary
         try {
@@ -162,6 +175,41 @@ export default function SessionDetails() {
       setError(err.message || 'Failed to opt out')
     } finally {
       setOptingIn(false)
+    }
+  }
+
+  async function loadAvailablePlayers() {
+    if (!session) return
+    try {
+      const players = await getPoolPlayersNotInSession(session.pool_id, session.id)
+      setAvailablePlayers(players)
+      setSelectedPlayerId('')
+    } catch (err) {
+      console.error('Failed to load available players:', err)
+    }
+  }
+
+  async function handleAddPlayer() {
+    if (!session || !selectedPlayerId || addingPlayer) return
+
+    try {
+      setAddingPlayer(true)
+      setError(null)
+      await addPlayerToSession(session.id, selectedPlayerId, 'committed')
+      
+      // Reload participants and available players
+      if (currentPlayerId) {
+        await loadParticipants(session.id, currentPlayerId)
+      }
+      await loadAvailablePlayers()
+      
+      // Reload cost summary
+      const summary = await getSessionCostSummary(session.id)
+      setCostSummary(summary)
+    } catch (err: any) {
+      setError(err.message || 'Failed to add player')
+    } finally {
+      setAddingPlayer(false)
     }
   }
 
@@ -524,6 +572,36 @@ export default function SessionDetails() {
               </p>
             )}
           </div>
+
+          {/* Admin: Add player to session */}
+          {isOwner && !session.roster_locked && !isPast && session.status !== 'cancelled' && availablePlayers.length > 0 && (
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <label className="block text-xs font-medium text-gray-600 mb-2">
+                Add Player to Session
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedPlayerId}
+                  onChange={(e) => setSelectedPlayerId(e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
+                >
+                  <option value="">Select a player...</option>
+                  {availablePlayers.map((player) => (
+                    <option key={player.id} value={player.id}>
+                      {player.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleAddPlayer}
+                  disabled={!selectedPlayerId || addingPlayer}
+                  className="px-4 py-2 text-sm bg-[#3CBBB1] text-white rounded-md hover:bg-[#35a8a0] focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {addingPlayer ? 'Adding...' : 'Add'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Opt-in buttons (if user is a player and not already opted in) */}
           {currentPlayerId && !currentPlayerStatus && !isPast && (
