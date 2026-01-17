@@ -249,7 +249,7 @@ export interface CreatePlayerData {
 }
 
 // Create a new player and add them to a pool (admin action)
-// This bypasses the registration flow for admins to manually add players
+// Uses SECURITY DEFINER function to bypass RLS
 export async function createPlayerAndAddToPool(
   poolId: string,
   playerData: CreatePlayerData
@@ -264,42 +264,30 @@ export async function createPlayerAndAddToPool(
   // Strip @ from venmo if present
   const venmoAccount = playerData.venmo_account.replace(/^@/, '')
 
-  // Create the player record
-  const { data: player, error: playerError } = await supabase
-    .from('players')
-    .insert({
-      name: playerData.name,
-      email: playerData.email || null,
-      phone: formattedPhone,
-      venmo_account: venmoAccount,
-      is_active: true,
-      notification_preferences: {
-        email: !!playerData.email,
-        sms: !!playerData.phone,
-      },
-    })
-    .select()
-    .single()
+  // Use RPC function that bypasses RLS
+  const { data: playerId, error: rpcError } = await supabase.rpc('create_player_for_pool', {
+    p_pool_id: poolId,
+    p_name: playerData.name,
+    p_venmo_account: venmoAccount,
+    p_email: playerData.email || null,
+    p_phone: formattedPhone,
+  })
 
-  if (playerError) {
-    console.error('Error creating player:', playerError)
-    throw playerError
+  if (rpcError) {
+    console.error('Error creating player:', rpcError)
+    throw rpcError
   }
 
-  // Add player to the pool
-  const { error: poolPlayerError } = await supabase
-    .from('pool_players')
-    .insert({
-      pool_id: poolId,
-      player_id: player.id,
-      is_active: true,
-    })
+  // Fetch the created player to return
+  const { data: player, error: fetchError } = await supabase
+    .from('players')
+    .select('*')
+    .eq('id', playerId)
+    .single()
 
-  if (poolPlayerError) {
-    // Rollback: delete the player if we couldn't add to pool
-    await supabase.from('players').delete().eq('id', player.id)
-    console.error('Error adding player to pool:', poolPlayerError)
-    throw poolPlayerError
+  if (fetchError) {
+    console.error('Error fetching created player:', fetchError)
+    throw fetchError
   }
 
   return {
