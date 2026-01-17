@@ -7,6 +7,7 @@
 - View pools you own or are a member of
 - Pool details page with player list
 - Generate registration links (auto-copy to clipboard)
+- **Remove player from pool** (soft delete, can re-add via dropdown)
 
 ### 2. Player Registration
 - One-time registration links
