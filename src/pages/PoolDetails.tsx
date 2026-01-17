@@ -37,6 +37,9 @@ export default function PoolDetails() {
   const [existingPlayers, setExistingPlayers] = useState<{ id: string; name: string; email: string | null }[]>([])
   const [selectedExistingPlayerId, setSelectedExistingPlayerId] = useState('')
   const [addingExistingPlayer, setAddingExistingPlayer] = useState(false)
+  
+  // Registration links collapsed state
+  const [showUsedLinks, setShowUsedLinks] = useState(false)
 
   useEffect(() => {
     const identifier = slug || id
@@ -381,17 +384,22 @@ export default function PoolDetails() {
             </div>
           )}
 
-          {isOwner && registrationLinks.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">
-                Registration Links
-              </h3>
-              <div className="space-y-2">
-                {registrationLinks.map((link) => {
-                  const isExpired = new Date(link.expires_at) < new Date()
-                  const isUsed = link.used_at !== null
-
-                  return (
+          {isOwner && registrationLinks.length > 0 && (() => {
+            const activeLinks = registrationLinks.filter(link => 
+              link.used_at === null && new Date(link.expires_at) >= new Date()
+            )
+            const usedOrExpiredLinks = registrationLinks.filter(link => 
+              link.used_at !== null || new Date(link.expires_at) < new Date()
+            )
+            
+            return (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">
+                  Registration Links
+                </h3>
+                <div className="space-y-2">
+                  {/* Active links - always shown */}
+                  {activeLinks.map((link) => (
                     <div
                       key={link.id}
                       className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs"
@@ -401,39 +409,71 @@ export default function PoolDetails() {
                           <code className="text-gray-600 truncate font-mono">
                             {link.token.substring(0, 16)}...
                           </code>
-                          {isUsed && (
-                            <span className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-xs">
-                              Used
-                            </span>
-                          )}
-                          {isExpired && !isUsed && (
-                            <span className="bg-red-100 text-red-800 px-1.5 py-0.5 rounded text-xs">
-                              Expired
-                            </span>
-                          )}
                         </div>
                         <div className="text-gray-500">
-                          {link.used_at
-                            ? `Used ${new Date(link.used_at).toLocaleDateString()}`
-                            : isExpired
-                            ? `Expired ${new Date(link.expires_at).toLocaleDateString()}`
-                            : `Expires ${new Date(link.expires_at).toLocaleDateString()}`}
+                          Expires {new Date(link.expires_at).toLocaleDateString()}
                         </div>
                       </div>
-                      {!isUsed && !isExpired && (
-                        <button
-                          onClick={() => copyRegistrationUrl(link.token)}
-                          className="ml-2 text-[#3CBBB1] hover:text-[#35a8a0] text-xs whitespace-nowrap"
-                        >
-                          {copiedToken === link.token ? 'Copied!' : 'Copy URL'}
-                        </button>
+                      <button
+                        onClick={() => copyRegistrationUrl(link.token)}
+                        className="ml-2 text-[#3CBBB1] hover:text-[#35a8a0] text-xs whitespace-nowrap"
+                      >
+                        {copiedToken === link.token ? 'Copied!' : 'Copy URL'}
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {activeLinks.length === 0 && usedOrExpiredLinks.length > 0 && (
+                    <p className="text-gray-500 text-xs">No active links. Generate a new one above.</p>
+                  )}
+                  
+                  {/* Used/expired links - collapsible */}
+                  {usedOrExpiredLinks.length > 0 && (
+                    <div className="mt-2">
+                      <button
+                        onClick={() => setShowUsedLinks(!showUsedLinks)}
+                        className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                      >
+                        <span className={`transform transition-transform ${showUsedLinks ? 'rotate-90' : ''}`}>
+                          ▶
+                        </span>
+                        {usedOrExpiredLinks.length} used/expired link{usedOrExpiredLinks.length !== 1 ? 's' : ''}
+                      </button>
+                      
+                      {showUsedLinks && (
+                        <div className="mt-2 space-y-1 pl-4 border-l-2 border-gray-200">
+                          {usedOrExpiredLinks.map((link) => {
+                            const isExpired = new Date(link.expires_at) < new Date()
+                            const isUsed = link.used_at !== null
+                            
+                            return (
+                              <div
+                                key={link.id}
+                                className="flex items-center gap-2 p-1.5 bg-gray-50 rounded text-xs opacity-60"
+                              >
+                                <code className="text-gray-500 font-mono text-xs">
+                                  {link.token.substring(0, 12)}...
+                                </code>
+                                {isUsed ? (
+                                  <span className="text-green-600 text-xs">
+                                    ✓ Used {new Date(link.used_at!).toLocaleDateString()}
+                                  </span>
+                                ) : isExpired ? (
+                                  <span className="text-red-500 text-xs">
+                                    Expired {new Date(link.expires_at).toLocaleDateString()}
+                                  </span>
+                                ) : null}
+                              </div>
+                            )
+                          })}
+                        </div>
                       )}
                     </div>
-                  )
-                })}
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
         </div>
 
         {/* Sessions Section */}
