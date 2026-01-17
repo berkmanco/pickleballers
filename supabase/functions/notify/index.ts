@@ -189,7 +189,7 @@ async function notifySessionCreated(supabase: ReturnType<typeof createClient>, s
         <p>Are you in? Click below to opt in!</p>
       `,
       ctaText: "View Session",
-      ctaUrl: `${APP_URL}/sessions/${sessionId}`,
+      ctaUrl: `${APP_URL}/s/${sessionId}`,
     });
 
     try {
@@ -366,20 +366,51 @@ async function notifyPaymentReminder(supabase: ReturnType<typeof createClient>, 
 async function notifySessionReminder(supabase: ReturnType<typeof createClient>, sessionId: string) {
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("id, proposed_date, proposed_time, court_location, pool:pools(id, name)")
+    .select("id, proposed_date, proposed_time, court_location, pool:pools(id, name, owner_id)")
     .eq("id", sessionId)
     .single();
 
   if (sessionError || !session) throw new Error("Session not found");
 
-  // Get all committed participants
+  // Get the pool owner's Venmo account for payment links
+  const { data: ownerPlayer } = await supabase
+    .from("players")
+    .select("venmo_account")
+    .eq("user_id", session.pool.owner_id)
+    .single();
+
+  const adminVenmo = ownerPlayer?.venmo_account;
+
+  // Get all committed AND paid participants (not just committed)
   const { data: participants, error: participantsError } = await supabase
     .from("session_participants")
-    .select("player:players(id, name, email, phone, notification_preferences)")
+    .select(`
+      id,
+      player:players(id, name, email, phone, notification_preferences)
+    `)
     .eq("session_id", sessionId)
-    .eq("status", "committed");
+    .in("status", ["committed", "paid"]);
 
   if (participantsError) throw participantsError;
+
+  // Get pending payments for this session to check who still owes
+  const { data: pendingPayments } = await supabase
+    .from("payments")
+    .select(`
+      id, amount,
+      session_participant:session_participants!inner(id, player_id)
+    `)
+    .eq("session_participant.session_id", sessionId)
+    .eq("status", "pending");
+
+  // Create a map of player_id -> payment info
+  const pendingPaymentsByPlayer = new Map<string, { id: string; amount: number }>();
+  for (const payment of pendingPayments || []) {
+    const playerId = (payment.session_participant as { player_id: string })?.player_id;
+    if (playerId) {
+      pendingPaymentsByPlayer.set(playerId, { id: payment.id, amount: payment.amount });
+    }
+  }
 
   const results = { sent: 0, failed: 0, errors: [] as string[] };
   const sessionDate = formatDate(session.proposed_date);
@@ -399,11 +430,36 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
   for (const participant of participants || []) {
     const player = participant.player as Player;
     
+    // Check if this player has a pending payment
+    const pendingPayment = pendingPaymentsByPlayer.get(player.id);
+    const hasPendingPayment = !!pendingPayment;
+    
+    // Generate Venmo pay link if they have a pending payment
+    let venmoPayLink: string | null = null;
+    if (hasPendingPayment && adminVenmo) {
+      venmoPayLink = generateVenmoPayLink(
+        adminVenmo, 
+        pendingPayment.amount, 
+        session.proposed_date, 
+        session.proposed_time, 
+        session.pool.name, 
+        pendingPayment.id
+      );
+    }
+    
     // Send email if enabled
     if (player.email && player.notification_preferences?.email) {
+      // Build payment reminder section if they still owe
+      const paymentSection = hasPendingPayment ? `
+        <div style="background: #fef3c7; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #f59e0b;">
+          <p style="margin: 0; color: #92400e;"><strong>💰 Payment Due:</strong> $${pendingPayment.amount.toFixed(2)}</p>
+          <p style="margin: 8px 0 0 0; font-size: 14px; color: #92400e;">Please pay before the session!</p>
+        </div>
+      ` : "";
+
       const html = emailTemplate({
         title,
-        preheader: `${session.pool.name} session ${timeWord} at ${sessionTime}`,
+        preheader: `${session.pool.name} session ${timeWord} at ${sessionTime}${hasPendingPayment ? ` - $${pendingPayment.amount.toFixed(2)} due` : ""}`,
         body: `
           <p>Hey ${getFirstName(player.name)}!</p>
           <p>Just a reminder - you're playing ${timeWord}!</p>
@@ -413,15 +469,19 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
             <p style="margin: 8px 0 0 0;"><strong>⏰ Time:</strong> ${sessionTime}</p>
             ${session.court_location ? `<p style="margin: 8px 0 0 0;"><strong>📍 Location:</strong> ${session.court_location}</p>` : ""}
           </div>
+          ${paymentSection}
           <p>See you on the court!</p>
         `,
-        ctaText: "View Session",
-        ctaUrl: `${APP_URL}/sessions/${sessionId}`,
+        ctaText: hasPendingPayment && venmoPayLink ? "Pay & View Session" : "View Session",
+        ctaUrl: hasPendingPayment && venmoPayLink ? venmoPayLink : `${APP_URL}/s/${sessionId}`,
+        secondaryCtaText: hasPendingPayment && venmoPayLink ? "View Session" : undefined,
+        secondaryCtaUrl: hasPendingPayment && venmoPayLink ? `${APP_URL}/s/${sessionId}` : undefined,
       });
 
       try {
         const subjectPrefix = isToday ? "Today" : isTomorrow ? "Tomorrow" : sessionDate;
-        await sendEmail(player.email, `${subjectPrefix}: ${session.pool.name} at ${sessionTime}`, html);
+        const subjectSuffix = hasPendingPayment ? ` - $${pendingPayment.amount.toFixed(2)} due` : "";
+        await sendEmail(player.email, `${subjectPrefix}: ${session.pool.name} at ${sessionTime}${subjectSuffix}`, html);
         results.sent++;
         await logNotification(supabase, "session_reminder", sessionId, player.id, "email", true);
       } catch (err) {
@@ -432,7 +492,8 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
 
     // Send SMS if enabled and phone exists
     if (player.phone && player.notification_preferences?.sms) {
-      const smsMessage = `🏓 DinkUp Reminder: ${session.pool.name} ${timeWord} at ${sessionTime}. See you on the court!`;
+      const paymentNote = hasPendingPayment ? ` Don't forget to pay $${pendingPayment.amount.toFixed(2)}!` : "";
+      const smsMessage = `🏓 DinkUp: ${session.pool.name} ${timeWord} at ${sessionTime}.${paymentNote} See you on the court!`;
       
       try {
         await sendSms(player.phone, smsMessage);
@@ -484,7 +545,7 @@ async function notifyWaitlistPromoted(supabase: ReturnType<typeof createClient>,
         <p>You're now committed to this session. If you can no longer make it, please drop out as soon as possible so someone else can take your spot.</p>
       `,
       ctaText: "View Session",
-      ctaUrl: `${APP_URL}/sessions/${sessionId}`,
+      ctaUrl: `${APP_URL}/s/${sessionId}`,
     });
 
     try {
@@ -499,7 +560,7 @@ async function notifyWaitlistPromoted(supabase: ReturnType<typeof createClient>,
 
   // Send SMS for time-sensitive notification
   if (player.phone && player.notification_preferences?.sms) {
-    const smsMessage = `🎉 DinkUp: You're in! Promoted from waitlist for ${session.pool.name} on ${sessionDate} at ${sessionTime}. View: ${APP_URL}/sessions/${sessionId}`;
+    const smsMessage = `🎉 DinkUp: You're in! Promoted from waitlist for ${session.pool.name} on ${sessionDate} at ${sessionTime}. View: ${APP_URL}/s/${sessionId}`;
     
     try {
       await sendSms(player.phone, smsMessage);
