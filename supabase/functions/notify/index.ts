@@ -217,11 +217,13 @@ async function notifyRosterLocked(supabase: ReturnType<typeof createClient>, ses
   if (sessionError || !session) throw new Error("Session not found");
 
   // Get pending payments with player info
+  // Note: Must use !inner to filter on nested relation
   const { data: payments, error: paymentsError } = await supabase
     .from("payments")
     .select(`
       id, amount, venmo_payment_link,
-      session_participant:session_participants(
+      session_participant:session_participants!inner(
+        session_id,
         player:players(id, name, email, phone, notification_preferences)
       )
     `)
@@ -281,11 +283,13 @@ async function notifyPaymentReminder(supabase: ReturnType<typeof createClient>, 
   if (sessionError || !session) throw new Error("Session not found");
 
   // Only get PENDING payments
+  // Note: Must use !inner to filter on nested relation
   const { data: payments, error: paymentsError } = await supabase
     .from("payments")
     .select(`
       id, amount, venmo_payment_link,
-      session_participant:session_participants(
+      session_participant:session_participants!inner(
+        session_id,
         player:players(id, name, email, phone, notification_preferences)
       )
     `)
