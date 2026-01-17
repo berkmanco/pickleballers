@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { getPool, isPoolOwner, getPoolPlayers, createPlayerAndAddToPool, Pool, Player } from '../lib/pools'
+import { getPool, isPoolOwner, getPoolPlayers, createPlayerAndAddToPool, getPlayersNotInPool, addExistingPlayerToPool, Pool, Player } from '../lib/pools'
 import { formatPhone } from '../lib/utils'
 import {
   createRegistrationLink,
@@ -32,6 +32,11 @@ export default function PoolDetails() {
   const [newPlayerEmail, setNewPlayerEmail] = useState('')
   const [newPlayerPhone, setNewPlayerPhone] = useState('')
   const [newPlayerVenmo, setNewPlayerVenmo] = useState('')
+  
+  // Add existing player state
+  const [existingPlayers, setExistingPlayers] = useState<{ id: string; name: string; email: string | null }[]>([])
+  const [selectedExistingPlayerId, setSelectedExistingPlayerId] = useState('')
+  const [addingExistingPlayer, setAddingExistingPlayer] = useState(false)
 
   useEffect(() => {
     const identifier = slug || id
@@ -57,10 +62,14 @@ export default function PoolDetails() {
         const poolSessions = await getUpcomingSessions(poolData.id)
         setSessions(poolSessions)
 
-        // Load registration links if owner
+        // Load registration links and existing players if owner
         if (owner) {
-          const links = await getRegistrationLinks(poolData.id)
+          const [links, availablePlayers] = await Promise.all([
+            getRegistrationLinks(poolData.id),
+            getPlayersNotInPool(poolData.id),
+          ])
           setRegistrationLinks(links)
+          setExistingPlayers(availablePlayers)
         }
       } catch (err: any) {
         setError(err.message || 'Failed to load pool')
@@ -128,6 +137,30 @@ export default function PoolDetails() {
       setError(err.message || 'Failed to add player')
     } finally {
       setAddingPlayer(false)
+    }
+  }
+
+  const handleAddExistingPlayer = async () => {
+    if (!pool || !selectedExistingPlayerId) return
+
+    try {
+      setAddingExistingPlayer(true)
+      setError(null)
+      await addExistingPlayerToPool(pool.id, selectedExistingPlayerId)
+      
+      // Reload players list
+      const updatedPlayers = await getPoolPlayers(pool.id)
+      setPlayers(updatedPlayers)
+      
+      // Reload available players
+      const availablePlayers = await getPlayersNotInPool(pool.id)
+      setExistingPlayers(availablePlayers)
+      
+      setSelectedExistingPlayerId('')
+    } catch (err: any) {
+      setError(err.message || 'Failed to add player to pool')
+    } finally {
+      setAddingExistingPlayer(false)
     }
   }
 
@@ -235,7 +268,37 @@ export default function PoolDetails() {
             </div>
           )}
 
-          {/* Add Player Form (Admin only) */}
+          {/* Add Existing Player Dropdown (Admin only) */}
+          {isOwner && existingPlayers.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Add Existing Player
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedExistingPlayerId}
+                  onChange={(e) => setSelectedExistingPlayerId(e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
+                >
+                  <option value="">Select a player...</option>
+                  {existingPlayers.map((player) => (
+                    <option key={player.id} value={player.id}>
+                      {player.name}{player.email ? ` (${player.email})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleAddExistingPlayer}
+                  disabled={!selectedExistingPlayerId || addingExistingPlayer}
+                  className="px-4 py-2 text-sm bg-[#3CBBB1] text-white rounded-md hover:bg-[#35a8a0] focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {addingExistingPlayer ? 'Adding...' : 'Add'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Add New Player Form (Admin only) */}
           {isOwner && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               {!showAddPlayer ? (
@@ -243,11 +306,11 @@ export default function PoolDetails() {
                   onClick={() => setShowAddPlayer(true)}
                   className="text-sm text-[#3CBBB1] hover:text-[#35a8a0] transition"
                 >
-                  + Add Player Manually
+                  + Create New Player
                 </button>
               ) : (
                 <form onSubmit={handleAddPlayer} className="space-y-3">
-                  <h3 className="text-sm font-medium text-gray-700">Add Player</h3>
+                  <h3 className="text-sm font-medium text-gray-700">Create New Player</h3>
                   <div>
                     <input
                       type="text"

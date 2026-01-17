@@ -307,6 +307,75 @@ export async function createPlayerAndAddToPool(
   } as Player
 }
 
+// Get all players NOT in a specific pool (for adding existing players)
+export async function getPlayersNotInPool(poolId: string): Promise<{ id: string; name: string; email: string | null }[]> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  // Get all active players
+  const { data: allPlayers, error: playersError } = await supabase
+    .from('players')
+    .select('id, name, email')
+    .eq('is_active', true)
+    .order('name', { ascending: true })
+
+  if (playersError) throw playersError
+
+  // Get players already in this pool
+  const { data: poolPlayers, error: poolPlayersError } = await supabase
+    .from('pool_players')
+    .select('player_id')
+    .eq('pool_id', poolId)
+    .eq('is_active', true)
+
+  if (poolPlayersError) throw poolPlayersError
+
+  const poolPlayerIds = new Set((poolPlayers || []).map(pp => pp.player_id))
+
+  // Filter to players not in pool
+  return (allPlayers || []).filter(p => !poolPlayerIds.has(p.id))
+}
+
+// Add an existing player to a pool
+export async function addExistingPlayerToPool(poolId: string, playerId: string): Promise<void> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  // Check if already in pool (including inactive)
+  const { data: existing } = await supabase
+    .from('pool_players')
+    .select('id, is_active')
+    .eq('pool_id', poolId)
+    .eq('player_id', playerId)
+    .single()
+
+  if (existing) {
+    if (existing.is_active) {
+      throw new Error('Player is already in this pool')
+    }
+    // Reactivate if inactive
+    const { error } = await supabase
+      .from('pool_players')
+      .update({ is_active: true, joined_at: new Date().toISOString() })
+      .eq('id', existing.id)
+
+    if (error) throw error
+  } else {
+    // Add new pool_player record
+    const { error } = await supabase
+      .from('pool_players')
+      .insert({
+        pool_id: poolId,
+        player_id: playerId,
+        is_active: true,
+      })
+
+    if (error) throw error
+  }
+}
+
 // Get pool owner's player record (for Venmo account)
 export async function getPoolOwnerPlayer(poolId: string): Promise<Player | null> {
   if (!supabase) {

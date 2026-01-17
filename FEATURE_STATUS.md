@@ -82,14 +82,13 @@
 - Updates cost calculations automatically
 
 ### 12. Add Player to Pool
-- Admin can manually add players to a pool
+- **Add Existing Player**: Dropdown of all players not already in pool
+- **Create New Player**: Form for name, Venmo, email, phone
 - Bypasses registration flow (no magic link needed)
-- Required: name, Venmo username
-- Optional: email, phone
 - Auto-formats phone to E.164, strips @ from Venmo
 
 ### 13. Testing
-- **139 automated tests** via Vitest
+- **143 automated tests** via Vitest
 - Coverage: pools, sessions, registration, payments, notifications, venmo-parser
 - Run with `npm test`
 

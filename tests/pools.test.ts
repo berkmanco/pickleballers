@@ -449,3 +449,203 @@ describe('Add Player to Pool', () => {
     console.log('Pool now has', poolPlayers?.length, 'active players')
   })
 })
+
+describe('Add Existing Player to Pool', () => {
+  const supabase = getServiceClient()
+  const playersToCleanup: string[] = []
+  const poolPlayersToCleanup: { poolId: string; playerId: string }[] = []
+  let testPoolId: string
+  let secondPoolId: string
+
+  beforeAll(async () => {
+    // Get two pools from seed data
+    const { data: pools } = await supabase
+      .from('pools')
+      .select('id')
+      .limit(2)
+
+    if (!pools || pools.length < 2) throw new Error('Need at least 2 pools in seed data')
+    testPoolId = pools[0].id
+    secondPoolId = pools[1].id
+  })
+
+  afterEach(async () => {
+    // Cleanup pool_players we added
+    for (const pp of poolPlayersToCleanup) {
+      await supabase.from('pool_players').delete()
+        .eq('pool_id', pp.poolId)
+        .eq('player_id', pp.playerId)
+    }
+    poolPlayersToCleanup.length = 0
+
+    // Cleanup test players
+    for (const playerId of playersToCleanup) {
+      await supabase.from('pool_players').delete().eq('player_id', playerId)
+      await supabase.from('players').delete().eq('id', playerId)
+    }
+    playersToCleanup.length = 0
+  })
+
+  it('should get players not in a specific pool', async () => {
+    // Create a player in pool 1 only
+    const { data: player } = await supabase
+      .from('players')
+      .insert({
+        name: 'Pool 1 Only Player',
+        venmo_account: 'pool1only',
+        is_active: true,
+        notification_preferences: { email: false, sms: false },
+      })
+      .select()
+      .single()
+
+    playersToCleanup.push(player.id)
+
+    await supabase.from('pool_players').insert({
+      pool_id: testPoolId,
+      player_id: player.id,
+      is_active: true,
+    })
+    poolPlayersToCleanup.push({ poolId: testPoolId, playerId: player.id })
+
+    // Get players NOT in pool 2 - should include our player
+    const { data: allPlayers } = await supabase
+      .from('players')
+      .select('id')
+      .eq('is_active', true)
+
+    const { data: pool2Players } = await supabase
+      .from('pool_players')
+      .select('player_id')
+      .eq('pool_id', secondPoolId)
+      .eq('is_active', true)
+
+    const pool2PlayerIds = new Set((pool2Players || []).map(pp => pp.player_id))
+    const playersNotInPool2 = (allPlayers || []).filter(p => !pool2PlayerIds.has(p.id))
+
+    // Our player should be in the "not in pool 2" list
+    expect(playersNotInPool2.some(p => p.id === player.id)).toBe(true)
+    console.log('Players not in pool 2:', playersNotInPool2.length)
+  })
+
+  it('should add existing player to pool', async () => {
+    // Create a player not in any pool
+    const { data: player } = await supabase
+      .from('players')
+      .insert({
+        name: 'Unattached Player',
+        venmo_account: 'unattached',
+        is_active: true,
+        notification_preferences: { email: false, sms: false },
+      })
+      .select()
+      .single()
+
+    playersToCleanup.push(player.id)
+
+    // Add to pool
+    const { error } = await supabase
+      .from('pool_players')
+      .insert({
+        pool_id: testPoolId,
+        player_id: player.id,
+        is_active: true,
+      })
+
+    expect(error).toBeNull()
+    poolPlayersToCleanup.push({ poolId: testPoolId, playerId: player.id })
+
+    // Verify player is in pool
+    const { data: poolPlayer } = await supabase
+      .from('pool_players')
+      .select('*')
+      .eq('pool_id', testPoolId)
+      .eq('player_id', player.id)
+      .single()
+
+    expect(poolPlayer).toBeDefined()
+    expect(poolPlayer.is_active).toBe(true)
+    console.log('Added existing player to pool')
+  })
+
+  it('should reactivate inactive player in pool', async () => {
+    // Create a player
+    const { data: player } = await supabase
+      .from('players')
+      .insert({
+        name: 'Reactivate Test Player',
+        venmo_account: 'reactivate-test',
+        is_active: true,
+        notification_preferences: { email: false, sms: false },
+      })
+      .select()
+      .single()
+
+    playersToCleanup.push(player.id)
+
+    // Add to pool as inactive
+    await supabase.from('pool_players').insert({
+      pool_id: testPoolId,
+      player_id: player.id,
+      is_active: false,
+    })
+    poolPlayersToCleanup.push({ poolId: testPoolId, playerId: player.id })
+
+    // Reactivate
+    const { error } = await supabase
+      .from('pool_players')
+      .update({ is_active: true, joined_at: new Date().toISOString() })
+      .eq('pool_id', testPoolId)
+      .eq('player_id', player.id)
+
+    expect(error).toBeNull()
+
+    // Verify active
+    const { data: poolPlayer } = await supabase
+      .from('pool_players')
+      .select('is_active')
+      .eq('pool_id', testPoolId)
+      .eq('player_id', player.id)
+      .single()
+
+    expect(poolPlayer.is_active).toBe(true)
+    console.log('Reactivated player in pool')
+  })
+
+  it('should not duplicate player in pool', async () => {
+    // Create a player
+    const { data: player } = await supabase
+      .from('players')
+      .insert({
+        name: 'Duplicate Test Player',
+        venmo_account: 'duplicate-test',
+        is_active: true,
+        notification_preferences: { email: false, sms: false },
+      })
+      .select()
+      .single()
+
+    playersToCleanup.push(player.id)
+
+    // Add to pool
+    await supabase.from('pool_players').insert({
+      pool_id: testPoolId,
+      player_id: player.id,
+      is_active: true,
+    })
+    poolPlayersToCleanup.push({ poolId: testPoolId, playerId: player.id })
+
+    // Try to add again - should fail with duplicate key error
+    const { error } = await supabase
+      .from('pool_players')
+      .insert({
+        pool_id: testPoolId,
+        player_id: player.id,
+        is_active: true,
+      })
+
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23505') // Unique constraint violation
+    console.log('Correctly prevented duplicate')
+  })
+})
