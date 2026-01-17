@@ -98,6 +98,8 @@
 ## Future Features 📋
 
 ### High Priority
+- **FIX: Court cost calculation bug** - Uses auto-calculated courts instead of reserved courts
+- Adjust courts before locking roster (with cost preview)
 - Automatic session reminders (pg_cron job for 24h before)
 
 ### Medium Priority
@@ -119,6 +121,9 @@
 - Enhanced account management (settings page improvements)
 - Timezone support for session times
 - Show committed players in reminder emails ("Who's playing: Mike, Erik, +3 more")
+- "Adjust & Re-bill" - Send supplemental payment requests when costs change
+- Admin shortfall indicator - Show when admin is covering extra costs
+- Claim account / link existing player to auth user
 
 ---
 
