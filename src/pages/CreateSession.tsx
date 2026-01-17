@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { getPool, isPoolOwner, Pool } from '../lib/pools'
 import { createSession, CreateSessionData } from '../lib/sessions'
 import { notifySessionCreated } from '../lib/notifications'
+import { checkCourtAvailability, calculateEndTime, AvailableCourt } from '../lib/courtreserve'
 
 export default function CreateSession() {
   const [searchParams] = useSearchParams()
@@ -20,16 +21,25 @@ export default function CreateSession() {
     pool_id: poolId || '',
     proposed_date: '',
     proposed_time: '',
-    duration_minutes: 60,
+    duration_minutes: 120,
     min_players: 4,
     max_players: 7,
-    court_location: '',
+    court_location: 'Pickle Shack',
     court_numbers: [],
-    courts_needed: 1,
+    courts_needed: 2,
     admin_cost_per_court: 9.0,
     guest_pool_per_court: 48.0,
   })
   const [courtNumbersInput, setCourtNumbersInput] = useState('')
+  
+  // Court availability state
+  const [checkingAvailability, setCheckingAvailability] = useState(false)
+  const [availabilityResult, setAvailabilityResult] = useState<{
+    isAvailable: boolean
+    availableCourts: AvailableCourt[]
+    message: string
+  } | null>(null)
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!poolId || !user) return
@@ -58,6 +68,51 @@ export default function CreateSession() {
 
     loadPool()
   }, [poolId, user])
+
+  // Check court availability at Pickle Shack
+  const handleCheckAvailability = async () => {
+    if (!formData.proposed_date || !formData.proposed_time) {
+      setAvailabilityError('Please select a date and time first')
+      return
+    }
+
+    try {
+      setCheckingAvailability(true)
+      setAvailabilityError(null)
+      setAvailabilityResult(null)
+
+      const endTime = calculateEndTime(formData.proposed_time, formData.duration_minutes)
+      
+      const result = await checkCourtAvailability(
+        formData.proposed_date,
+        formData.proposed_time,
+        endTime,
+        formData.courts_needed
+      )
+
+      if (result.requestedSlot) {
+        setAvailabilityResult({
+          isAvailable: result.requestedSlot.isAvailable,
+          availableCourts: result.requestedSlot.availableCourts,
+          message: result.requestedSlot.message,
+        })
+
+        // Auto-fill court numbers if available
+        if (result.requestedSlot.isAvailable && result.requestedSlot.availableCourts.length > 0) {
+          const courtNames = result.requestedSlot.availableCourts
+            .slice(0, formData.courts_needed)
+            .map(c => c.name.replace('Court #', ''))
+            .join(', ')
+          setCourtNumbersInput(courtNames)
+        }
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to check availability'
+      setAvailabilityError(errorMessage)
+    } finally {
+      setCheckingAvailability(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -273,7 +328,7 @@ export default function CreateSession() {
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-3 gap-4">
           <div>
             <label
               htmlFor="court_location"
@@ -294,6 +349,30 @@ export default function CreateSession() {
           </div>
           <div>
             <label
+              htmlFor="courts_needed"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Courts Needed
+            </label>
+            <select
+              id="courts_needed"
+              value={formData.courts_needed}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  courts_needed: parseInt(e.target.value),
+                })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
+            >
+              <option value={1}>1 court</option>
+              <option value={2}>2 courts</option>
+              <option value={3}>3 courts</option>
+              <option value={4}>4 courts</option>
+            </select>
+          </div>
+          <div>
+            <label
               htmlFor="court_numbers"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
@@ -304,11 +383,74 @@ export default function CreateSession() {
               id="court_numbers"
               value={courtNumbersInput}
               onChange={(e) => setCourtNumbersInput(e.target.value)}
-              placeholder="e.g., 1, 2 or A, B"
+              placeholder="e.g., 1, 2"
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
             />
           </div>
         </div>
+
+        {/* Court Availability Check - only show for Pickle Shack */}
+        {formData.court_location.toLowerCase().includes('pickle') && (
+          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-700">
+                🏓 Check Pickle Shack Availability
+              </h3>
+              <button
+                type="button"
+                onClick={handleCheckAvailability}
+                disabled={checkingAvailability || !formData.proposed_date || !formData.proposed_time}
+                className="px-3 py-1.5 text-sm bg-[#3CBBB1] text-white rounded-md hover:bg-[#35a8a0] disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {checkingAvailability ? (
+                  <span className="flex items-center gap-2">
+                    <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                    Checking...
+                  </span>
+                ) : (
+                  'Check Availability'
+                )}
+              </button>
+            </div>
+
+            {availabilityError && (
+              <div className="text-red-600 text-sm bg-red-50 p-2 rounded">
+                ⚠️ {availabilityError}
+              </div>
+            )}
+
+            {availabilityResult && (
+              <div className={`text-sm p-3 rounded ${
+                availabilityResult.isAvailable 
+                  ? 'bg-green-50 text-green-800 border border-green-200' 
+                  : 'bg-yellow-50 text-yellow-800 border border-yellow-200'
+              }`}>
+                <p className="font-medium mb-2">{availabilityResult.message}</p>
+                {availabilityResult.availableCourts.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Available courts:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {availabilityResult.availableCourts.map(court => (
+                        <span
+                          key={court.id}
+                          className="px-2 py-0.5 bg-white rounded text-xs border"
+                        >
+                          {court.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!availabilityResult && !availabilityError && !checkingAvailability && (
+              <p className="text-xs text-gray-500">
+                Select a date and time above, then click "Check Availability" to see which courts are open.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="flex gap-4">
           <button
