@@ -23,12 +23,12 @@ export default function Dashboard() {
 
     async function loadDashboard() {
       try {
-        // Load pools
-        const poolsData = await getPools(userId, userEmail || undefined)
+        // Load pools and player ID in parallel (independent)
+        const [poolsData, playerId] = await Promise.all([
+          getPools(userId, userEmail || undefined),
+          getCurrentPlayerId(userId, userEmail || undefined),
+        ])
         setPools(poolsData)
-
-        // Get player ID for action queries
-        const playerId = await getCurrentPlayerId(userId, userEmail || undefined)
         
         if (playerId) {
           // Load action items in parallel
