@@ -62,9 +62,11 @@ interface Session {
   proposed_date: string;
   proposed_time: string;
   court_location?: string;
+  court_numbers?: string[];
   pool: {
     id: string;
     name: string;
+    owner_id?: string;
   };
 }
 
@@ -366,7 +368,7 @@ async function notifyPaymentReminder(supabase: ReturnType<typeof createClient>, 
 async function notifySessionReminder(supabase: ReturnType<typeof createClient>, sessionId: string) {
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("id, proposed_date, proposed_time, court_location, pool:pools(id, name, owner_id)")
+    .select("id, proposed_date, proposed_time, court_location, court_numbers, pool:pools(id, name, owner_id)")
     .eq("id", sessionId)
     .single();
 
@@ -468,6 +470,7 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
             <p style="margin: 8px 0 0 0;"><strong>📅 Date:</strong> ${sessionDate}</p>
             <p style="margin: 8px 0 0 0;"><strong>⏰ Time:</strong> ${sessionTime}</p>
             ${session.court_location ? `<p style="margin: 8px 0 0 0;"><strong>📍 Location:</strong> ${session.court_location}</p>` : ""}
+            ${session.court_numbers && session.court_numbers.length > 0 ? `<p style="margin: 8px 0 0 0;"><strong>🎾 Court${session.court_numbers.length > 1 ? 's' : ''}:</strong> ${session.court_numbers.join(', ')}</p>` : ""}
           </div>
           ${paymentSection}
           <p>See you on the court!</p>
@@ -781,7 +784,7 @@ function emailTemplate(params: EmailTemplateParams): string {
           <!-- Header -->
           <tr>
             <td style="padding: 32px 32px 0; text-align: center;">
-              <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #10b981;">🏓 DinkUp</h1>
+              <img src="${APP_URL}/logo.png" alt="DinkUp" width="120" height="auto" style="max-width: 120px; height: auto; margin-bottom: 8px;" />
             </td>
           </tr>
           
