@@ -1,58 +1,103 @@
-# CourtReserve Integration Research
+# CourtReserve Integration
 
-## Target Facility
-- **Name**: Pickle Shack
-- **URL**: https://app.courtreserve.com/Online/Reservations/Index/7878
-- **Facility ID**: 7878
-- **Courts**: 10 (Court #1 - CT10, all Pickleball)
+## Overview
+Integration with CourtReserve to check court availability at Pickle Shack (Facility ID: 7878).
 
-## Research Needed
+## How It Works
+1. **Fetch public page** → Extract JWT + RequestData tokens (no login required!)
+2. **Call backend API** → Get all reservations for a date
+3. **Calculate availability** → Find gaps between reservations
+4. **Return structured data** → Courts, reservations, available slots
 
-### 1. API Discovery
-Check browser DevTools Network tab while loading the reservations page:
-- Look for XHR/Fetch requests
-- Note any `/api/` endpoints
-- Check for JSON responses with availability data
+## API Endpoint
 
-### 2. Potential Endpoints to Try
-Based on URL patterns, try:
+**URL:** `POST /functions/v1/courtreserve`
+
+### Check Specific Time Slot
+```json
+{
+  "date": "2026-01-19",
+  "startTime": "18:00",
+  "endTime": "20:00",
+  "courtsNeeded": 2
+}
 ```
-GET https://app.courtreserve.com/api/reservations?orgId=7878&date=2026-01-18
-GET https://app.courtreserve.com/Online/Reservations/GetAvailability/7878
-GET https://app.courtreserve.com/Online/Calendar/7878
+
+**Response:**
+```json
+{
+  "requestedSlot": {
+    "startTime": "18:00",
+    "endTime": "20:00",
+    "courtsNeeded": 2,
+    "isAvailable": true,
+    "availableCourts": [
+      {"id": 21770, "name": "Court #1"},
+      {"id": 21771, "name": "Court #2"}
+    ],
+    "message": "✅ 4 court(s) available from 18:00 to 20:00"
+  }
+}
 ```
 
-### 3. Authentication
-- CourtReserve uses session-based auth
-- Would need to either:
-  - Store user's session cookie (security concern)
-  - Use OAuth if available
-  - Scrape while user is logged in (limited)
+### Get All Available Slots
+```json
+{
+  "date": "2026-01-19"
+}
+```
 
-## Integration Options
+**Response includes each court's schedule:**
+```json
+{
+  "date": "2026-01-19",
+  "facility": "Pickle Shack",
+  "courts": [{
+    "id": 21770,
+    "name": "Court #1",
+    "reservations": [...],
+    "availableSlots": [
+      {"start": "06:00", "end": "08:00"},
+      {"start": "16:30", "end": "23:00"}
+    ]
+  }]
+}
+```
 
-### Option A: User-Provided Session
-User logs in to CourtReserve, we use their session to fetch availability.
-- Pros: Full access to their view
-- Cons: Session expires, security concerns
+## Courts at Pickle Shack
+| ID | Name |
+|----|------|
+| 21770 | Court #1 |
+| 21771 | Court #2 |
+| 21772 | Court #3 |
+| 21773 | Court #4 |
+| 21778 | Court #5 |
+| 21779 | Court #6 |
+| 28669 | Court #7 |
+| 28670 | Court #8 |
+| 28671 | Court #9 |
+| 28672 | Court #10 |
 
-### Option B: Public Calendar (if available)
-Check if Pickle Shack has a public calendar feed.
-- Pros: No auth needed
-- Cons: May not exist, limited data
+## Technical Details
 
-### Option C: Manual Entry
-User manually enters court availability in DinkUp.
-- Pros: Simple, no integration needed
-- Cons: Extra work for user
+### Token Extraction
+CourtReserve embeds a public JWT token and RequestData in the HTML of the reservations page:
+- **JWT Token**: `Bearer eyJ...` (expires, but regenerated on each page load)
+- **RequestData**: Base64-encoded session data
 
-### Option D: Screenshot/OCR
-User uploads screenshot, we parse it.
-- Pros: Works with any system
-- Cons: Complex, error-prone
+### Backend API
+```
+https://backend.courtreserve.com/api/scheduler/member-expanded
+?id=7878
+&RequestData=<token>
+&jsonData={"startDate":"2026-01-19T05:00:00.000Z","orgId":"7878",...}
+```
 
-## Next Steps
-1. Open browser DevTools on the reservations page
-2. Go to Network tab, filter by XHR/Fetch
-3. Refresh the page and note all API calls
-4. Share the endpoint URLs and sample responses
+## Future Enhancements
+- [ ] Add UI to session creation for checking availability
+- [ ] Support multiple facilities (configurable facility ID)
+- [ ] Cache tokens to reduce page fetches
+- [ ] Auto-suggest available time slots
+
+## Status
+✅ **Working** - Edge function deployed and tested
