@@ -19,6 +19,17 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "DinkUp <noreply@dinkup.link>";
 const APP_URL = Deno.env.get("APP_URL") || "https://www.dinkup.link";
 
+// Test mode: skip actual email/SMS in local development
+// Check for local Supabase URL patterns (various forms used in dev)
+const IS_LOCAL = SUPABASE_URL?.includes("127.0.0.1") || 
+                 SUPABASE_URL?.includes("localhost") ||
+                 SUPABASE_URL?.includes("kong:8000") ||
+                 SUPABASE_URL?.includes("supabase_kong");
+const TEST_MODE = Deno.env.get("TEST_MODE") === "true" || IS_LOCAL;
+
+// Log for debugging (will show in edge function logs)
+console.log(`[notify] SUPABASE_URL: ${SUPABASE_URL}, IS_LOCAL: ${IS_LOCAL}, TEST_MODE: ${TEST_MODE}`);
+
 // Notification types
 type NotificationType = 
   | "session_created"      // New session proposed in a pool
@@ -480,6 +491,13 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
+  // In test mode, skip actual email sending
+  if (TEST_MODE) {
+    console.log(`[TEST MODE] Would send email to: ${to}`);
+    console.log(`[TEST MODE] Subject: ${subject}`);
+    return { id: `test-${Date.now()}`, message: "Test mode - email not sent" };
+  }
+
   if (!RESEND_API_KEY) {
     throw new Error("RESEND_API_KEY not configured");
   }
@@ -510,6 +528,13 @@ async function sendEmail(to: string, subject: string, html: string) {
 }
 
 async function sendSms(to: string, message: string) {
+  // In test mode, skip actual SMS sending
+  if (TEST_MODE) {
+    console.log(`[TEST MODE] Would send SMS to: ${to}`);
+    console.log(`[TEST MODE] Message: ${message}`);
+    return { sid: `test-${Date.now()}`, message: "Test mode - SMS not sent" };
+  }
+
   const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
   const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
   // Support both secret names for backwards compatibility
