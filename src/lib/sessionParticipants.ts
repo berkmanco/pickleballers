@@ -215,30 +215,29 @@ export async function getPoolPlayersNotInSession(
     throw new Error('Database connection not available')
   }
 
-  // Get all active pool players
-  const { data: poolPlayers, error: poolError } = await supabase
-    .from('pool_players')
-    .select('player:players(id, name)')
-    .eq('pool_id', poolId)
-    .eq('is_active', true)
+  // Run both queries in parallel
+  const [poolPlayersResult, participantsResult] = await Promise.all([
+    supabase
+      .from('pool_players')
+      .select('player:players(id, name)')
+      .eq('pool_id', poolId)
+      .eq('is_active', true),
+    supabase
+      .from('session_participants')
+      .select('player_id, status')
+      .eq('session_id', sessionId)
+      .in('status', ['committed', 'paid', 'maybe'])
+  ])
 
-  if (poolError) throw poolError
-
-  // Get players already actively in the session
-  const { data: participants, error: partError } = await supabase
-    .from('session_participants')
-    .select('player_id, status')
-    .eq('session_id', sessionId)
-    .in('status', ['committed', 'paid', 'maybe'])
-
-  if (partError) throw partError
+  if (poolPlayersResult.error) throw poolPlayersResult.error
+  if (participantsResult.error) throw participantsResult.error
 
   const activeParticipantIds = new Set(
-    (participants || []).map(p => p.player_id)
+    (participantsResult.data || []).map(p => p.player_id)
   )
 
   // Filter to players not actively in session
-  const availablePlayers = (poolPlayers || [])
+  const availablePlayers = (poolPlayersResult.data || [])
     .map((pp: any) => pp.player)
     .filter((player: any) => player && !activeParticipantIds.has(player.id))
 

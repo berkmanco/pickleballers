@@ -314,28 +314,27 @@ export async function getPlayersNotInPool(poolId: string): Promise<{ id: string;
     throw new Error('Database connection not available')
   }
 
-  // Get all active players
-  const { data: allPlayers, error: playersError } = await supabase
-    .from('players')
-    .select('id, name, email')
-    .eq('is_active', true)
-    .order('name', { ascending: true })
+  // Run both queries in parallel
+  const [allPlayersResult, poolPlayersResult] = await Promise.all([
+    supabase
+      .from('players')
+      .select('id, name, email')
+      .eq('is_active', true)
+      .order('name', { ascending: true }),
+    supabase
+      .from('pool_players')
+      .select('player_id')
+      .eq('pool_id', poolId)
+      .eq('is_active', true)
+  ])
 
-  if (playersError) throw playersError
+  if (allPlayersResult.error) throw allPlayersResult.error
+  if (poolPlayersResult.error) throw poolPlayersResult.error
 
-  // Get players already in this pool
-  const { data: poolPlayers, error: poolPlayersError } = await supabase
-    .from('pool_players')
-    .select('player_id')
-    .eq('pool_id', poolId)
-    .eq('is_active', true)
-
-  if (poolPlayersError) throw poolPlayersError
-
-  const poolPlayerIds = new Set((poolPlayers || []).map(pp => pp.player_id))
+  const poolPlayerIds = new Set((poolPlayersResult.data || []).map(pp => pp.player_id))
 
   // Filter to players not in pool
-  return (allPlayers || []).filter(p => !poolPlayerIds.has(p.id))
+  return (allPlayersResult.data || []).filter(p => !poolPlayerIds.has(p.id))
 }
 
 // Add an existing player to a pool
