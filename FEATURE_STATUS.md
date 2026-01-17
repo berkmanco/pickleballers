@@ -118,6 +118,7 @@
 - Opt out of all notifications (master toggle)
 - Enhanced account management (settings page improvements)
 - Timezone support for session times
+- Show committed players in reminder emails ("Who's playing: Mike, Erik, +3 more")
 
 ---
 
