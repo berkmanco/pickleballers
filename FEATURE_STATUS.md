@@ -50,10 +50,11 @@
 - SMS notifications via Twilio (opt-in)
 - Notification types:
   - New session created → email to pool members
-  - Roster locked → payment request email to guests
+  - Roster locked → payment request email to guests (with correct Venmo pay link)
   - Payment reminder → email to guests with pending payments
   - Session reminder → email + optional SMS (today/tomorrow logic)
   - Waitlist promoted → email + SMS
+- **Manual "Send Reminder" button** for admins to trigger session reminders
 - Notification preferences in Settings page
 - Notification log for auditing
 - Rate limiting (600ms between emails)
@@ -97,6 +98,7 @@
 ## Future Features 📋
 
 ### High Priority
+- Automatic session reminders (pg_cron job for 24h before)
 
 ### Medium Priority
 - Players page with detailed view
