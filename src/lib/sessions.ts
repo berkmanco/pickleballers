@@ -226,8 +226,65 @@ export async function lockRoster(sessionId: string): Promise<Session> {
 
 /**
  * Unlock the roster (admin only, for corrections)
+ * Optionally delete existing payments to allow re-calculation
  */
-export async function unlockRoster(sessionId: string): Promise<Session> {
+export async function unlockRoster(sessionId: string, deletePayments: boolean = false): Promise<Session> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  // If requested, delete existing payments first
+  if (deletePayments) {
+    // Get all participant IDs for this session
+    const { data: participants } = await supabase
+      .from('session_participants')
+      .select('id')
+      .eq('session_id', sessionId)
+
+    if (participants && participants.length > 0) {
+      const participantIds = participants.map(p => p.id)
+      await supabase
+        .from('payments')
+        .delete()
+        .in('session_participant_id', participantIds)
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({
+      roster_locked: false,
+      status: 'proposed', // Reset to proposed when unlocking
+    })
+    .eq('id', sessionId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as Session
+}
+
+/**
+ * Delete a session (admin only)
+ * This will cascade delete all participants, payments, and notification logs
+ */
+export async function deleteSession(sessionId: string): Promise<void> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  const { error } = await supabase
+    .from('sessions')
+    .delete()
+    .eq('id', sessionId)
+
+  if (error) throw error
+}
+
+/**
+ * Cancel a session (sets status to cancelled, preserves data)
+ */
+export async function cancelSession(sessionId: string): Promise<Session> {
   if (!supabase) {
     throw new Error('Database connection not available')
   }
@@ -235,7 +292,7 @@ export async function unlockRoster(sessionId: string): Promise<Session> {
   const { data, error } = await supabase
     .from('sessions')
     .update({
-      roster_locked: false,
+      status: 'cancelled',
     })
     .eq('id', sessionId)
     .select()
