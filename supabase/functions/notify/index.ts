@@ -27,6 +27,10 @@ const IS_LOCAL = SUPABASE_URL?.includes("127.0.0.1") ||
                  SUPABASE_URL?.includes("supabase_kong");
 const TEST_MODE = Deno.env.get("TEST_MODE") === "true" || IS_LOCAL;
 
+// SMS disabled until Twilio number is approved
+// TODO: Set to false once toll-free verification is complete
+const SMS_DISABLED = true;
+
 // Log for debugging (will show in edge function logs)
 console.log(`[notify] SUPABASE_URL: ${SUPABASE_URL}, IS_LOCAL: ${IS_LOCAL}, TEST_MODE: ${TEST_MODE}`);
 
@@ -638,6 +642,13 @@ async function sendSms(to: string, message: string) {
     console.log(`[TEST MODE] Would send SMS to: ${to}`);
     console.log(`[TEST MODE] Message: ${message}`);
     return { sid: `test-${Date.now()}`, message: "Test mode - SMS not sent" };
+  }
+
+  // SMS disabled until Twilio number is verified
+  if (SMS_DISABLED) {
+    console.log(`[SMS DISABLED] Skipping SMS to: ${to}`);
+    console.log(`[SMS DISABLED] Message would be: ${message}`);
+    return { sid: `disabled-${Date.now()}`, message: "SMS disabled - awaiting Twilio verification" };
   }
 
   const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");

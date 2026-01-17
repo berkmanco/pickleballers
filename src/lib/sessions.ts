@@ -201,6 +201,26 @@ export async function getSessionCostSummary(sessionId: string): Promise<SessionC
 }
 
 /**
+ * Update the number of courts for a session.
+ * Admin only - allows adjusting before locking roster.
+ */
+export async function updateCourtsNeeded(sessionId: string, courtsNeeded: number): Promise<Session> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({ courts_needed: courtsNeeded })
+    .eq('id', sessionId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as Session
+}
+
+/**
  * Lock the roster for a session.
  * This freezes the participant list and triggers payment creation.
  * Admin only - called when confirming the session.

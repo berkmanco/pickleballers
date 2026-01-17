@@ -44,6 +44,9 @@
 - Payment status tracking (pending, paid, forgiven)
 - Admin can mark payments as paid or forgiven
 - Payment summary with progress bar
+- **Cost breakdown showing calculation formula**
+- **Admin can adjust courts before locking roster**
+- **Cost uses reserved courts, not auto-calculated**
 
 ### 7. Notifications
 - Email notifications via Resend
@@ -98,8 +101,6 @@
 ## Future Features 📋
 
 ### High Priority
-- **FIX: Court cost calculation bug** - Uses auto-calculated courts instead of reserved courts
-- Adjust courts before locking roster (with cost preview)
 - Automatic session reminders (pg_cron job for 24h before)
 
 ### Medium Priority

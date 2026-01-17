@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { getSession, SessionWithPool, getSessionCostSummary, SessionCostSummary, lockRoster, unlockRoster, deleteSession, cancelSession } from '../lib/sessions'
+import { getSession, SessionWithPool, getSessionCostSummary, SessionCostSummary, lockRoster, unlockRoster, deleteSession, cancelSession, updateCourtsNeeded } from '../lib/sessions'
 import { isPoolOwner, getCurrentPlayerId } from '../lib/pools'
 import {
   getSessionParticipants,
@@ -57,6 +57,11 @@ export default function SessionDetails() {
   const [availablePlayers, setAvailablePlayers] = useState<{ id: string; name: string }[]>([])
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>('')
   const [addingPlayer, setAddingPlayer] = useState(false)
+  
+  // Court adjustment state
+  const [editingCourts, setEditingCourts] = useState(false)
+  const [adjustedCourts, setAdjustedCourts] = useState<number>(1)
+  const [updatingCourts, setUpdatingCourts] = useState(false)
 
   useEffect(() => {
     if (!id || !user) return
@@ -75,6 +80,7 @@ export default function SessionDetails() {
         
         setSession(sessionData)
         setCurrentPlayerId(playerId)
+        setAdjustedCourts(sessionData.courts_needed)
 
         // Phase 2: Now that we have session, load dependent data in parallel
         const [owner, participantsData, costSummaryData] = await Promise.all([
@@ -403,6 +409,25 @@ export default function SessionDetails() {
       setSession({ ...session, ...updatedSession })
     } catch (err: any) {
       setError(err.message || 'Failed to cancel session')
+    }
+  }
+
+  async function handleUpdateCourts() {
+    if (!session || updatingCourts) return
+
+    try {
+      setUpdatingCourts(true)
+      setError(null)
+      const updatedSession = await updateCourtsNeeded(session.id, adjustedCourts)
+      setSession({ ...session, ...updatedSession })
+      // Reload cost summary with new court count
+      const newCostSummary = await getSessionCostSummary(session.id)
+      setCostSummary(newCostSummary)
+      setEditingCourts(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to update courts')
+    } finally {
+      setUpdatingCourts(false)
     }
   }
 
@@ -743,9 +768,10 @@ export default function SessionDetails() {
 
       {/* Cost Info */}
       <div className="mt-6 bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Cost</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Cost Breakdown</h2>
         {costSummary ? (
           <>
+            {/* Main stats */}
             <dl className="grid sm:grid-cols-2 gap-4 text-sm mb-4">
               <div>
                 <dt className="text-gray-500">Committed Players</dt>
@@ -754,22 +780,76 @@ export default function SessionDetails() {
                 </dd>
               </div>
               <div>
-                <dt className="text-gray-500">Courts Needed</dt>
-                <dd className="text-gray-900 mt-1">{costSummary.courts_needed}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Cost per Guest</dt>
-                <dd className="text-gray-900 mt-1 font-bold text-lg">
-                  ${costSummary.guest_cost ? costSummary.guest_cost.toFixed(2) : '0.00'}
+                <dt className="text-gray-500">Courts Reserved</dt>
+                <dd className="text-gray-900 mt-1 flex items-center gap-2">
+                  {!session.roster_locked && isOwner && !editingCourts ? (
+                    <>
+                      <span>{session.courts_needed}</span>
+                      <button
+                        onClick={() => setEditingCourts(true)}
+                        className="text-xs text-[#3CBBB1] hover:text-[#35a8a0]"
+                      >
+                        (adjust)
+                      </button>
+                    </>
+                  ) : editingCourts ? (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={adjustedCourts}
+                        onChange={(e) => setAdjustedCourts(parseInt(e.target.value))}
+                        className="text-sm border border-gray-300 rounded px-2 py-1"
+                      >
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={handleUpdateCourts}
+                        disabled={updatingCourts}
+                        className="text-xs bg-[#3CBBB1] text-white px-2 py-1 rounded hover:bg-[#35a8a0] disabled:opacity-50"
+                      >
+                        {updatingCourts ? '...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setAdjustedCourts(session.courts_needed)
+                          setEditingCourts(false)
+                        }}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <span>{session.courts_needed}</span>
+                  )}
                 </dd>
               </div>
-              <div>
-                <dt className="text-gray-500">Total Guest Pool</dt>
-                <dd className="text-gray-900 mt-1">${costSummary.guest_pool ? costSummary.guest_pool.toFixed(2) : '0.00'}</dd>
-              </div>
             </dl>
+
+            {/* Cost calculation breakdown */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">How cost is calculated:</h3>
+              <div className="text-sm text-gray-600 space-y-1">
+                <p>
+                  <span className="text-gray-500">Guest pool per court:</span>{' '}
+                  ${session.guest_pool_per_court.toFixed(2)} × {session.courts_needed} court{session.courts_needed !== 1 ? 's' : ''} = <strong>${costSummary.guest_pool?.toFixed(2)}</strong>
+                </p>
+                <p>
+                  <span className="text-gray-500">Split among {costSummary.guest_count} guest{costSummary.guest_count !== 1 ? 's' : ''}:</span>{' '}
+                  ${costSummary.guest_pool?.toFixed(2)} ÷ {costSummary.guest_count} = <strong className="text-lg text-gray-900">${costSummary.guest_cost?.toFixed(2)}</strong>
+                </p>
+                {isOwner && (
+                  <p className="text-gray-400 text-xs mt-2">
+                    Admin covers: ${session.admin_cost_per_court.toFixed(2)} × {session.courts_needed} = ${costSummary.admin_cost?.toFixed(2)}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Warnings */}
             {costSummary.total_players < session.min_players && (
-              <p className="text-yellow-600 text-sm mt-2">
+              <p className="text-yellow-600 text-sm">
                 ⚠️ Need {session.min_players - costSummary.total_players} more player(s) to meet minimum
               </p>
             )}
