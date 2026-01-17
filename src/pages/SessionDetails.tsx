@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { getSession, SessionWithPool, getSessionCostSummary, SessionCostSummary, lockRoster } from '../lib/sessions'
+import { getSession, SessionWithPool, getSessionCostSummary, SessionCostSummary, lockRoster, unlockRoster, deleteSession, cancelSession } from '../lib/sessions'
 import { isPoolOwner, getCurrentPlayerId } from '../lib/pools'
 import {
   getSessionParticipants,
@@ -26,6 +26,7 @@ import { notifyRosterLocked, notifyPaymentReminder } from '../lib/notifications'
 export default function SessionDetails() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [session, setSession] = useState<SessionWithPool | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +45,10 @@ export default function SessionDetails() {
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null)
   const [sendingReminder, setSendingReminder] = useState(false)
   const [notificationStatus, setNotificationStatus] = useState<string | null>(null)
+  
+  // Session management state
+  const [unlockingRoster, setUnlockingRoster] = useState(false)
+  const [deletingSession, setDeletingSession] = useState(false)
 
   useEffect(() => {
     if (!id || !user) return
@@ -234,6 +239,82 @@ export default function SessionDetails() {
       setNotificationStatus(`⚠️ Failed to send reminders: ${err.message}`)
     } finally {
       setSendingReminder(false)
+    }
+  }
+
+  async function handleUnlockRoster() {
+    if (!session || unlockingRoster) return
+
+    const hasPayments = payments.length > 0
+    const message = hasPayments
+      ? 'Unlock the roster? This will delete all existing payments and reset the session to "proposed" status. Players will need to be re-billed when you lock again.'
+      : 'Unlock the roster? This will reset the session to "proposed" status.'
+
+    if (!confirm(message)) {
+      return
+    }
+
+    try {
+      setUnlockingRoster(true)
+      setError(null)
+
+      const updatedSession = await unlockRoster(session.id, hasPayments)
+      setSession({ ...session, ...updatedSession })
+      setPayments([])
+      setPaymentSummary(null)
+      setNotificationStatus('✓ Roster unlocked. Session is now open for changes.')
+    } catch (err: any) {
+      setError(err.message || 'Failed to unlock roster')
+    } finally {
+      setUnlockingRoster(false)
+    }
+  }
+
+  async function handleDeleteSession() {
+    if (!session || deletingSession) return
+
+    const message = session.roster_locked
+      ? '⚠️ WARNING: This session has a locked roster with payments. Deleting will permanently remove all payment records. Are you sure?'
+      : 'Delete this session? This action cannot be undone.'
+
+    if (!confirm(message)) {
+      return
+    }
+
+    // Double confirm for locked sessions
+    if (session.roster_locked) {
+      if (!confirm('This is your last chance. Really delete this session and all its data?')) {
+        return
+      }
+    }
+
+    try {
+      setDeletingSession(true)
+      setError(null)
+
+      await deleteSession(session.id)
+      
+      // Navigate back to pool
+      navigate(`/p/${session.pools.slug}`)
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete session')
+      setDeletingSession(false)
+    }
+  }
+
+  async function handleCancelSession() {
+    if (!session) return
+
+    if (!confirm('Cancel this session? Participants will be notified.')) {
+      return
+    }
+
+    try {
+      setError(null)
+      const updatedSession = await cancelSession(session.id)
+      setSession({ ...session, ...updatedSession })
+    } catch (err: any) {
+      setError(err.message || 'Failed to cancel session')
     }
   }
 
@@ -588,20 +669,35 @@ export default function SessionDetails() {
       </div>
 
       {/* Admin Actions - Lock Roster */}
-      {isOwner && !session.roster_locked && !isPast && (
+      {isOwner && !session.roster_locked && !isPast && session.status !== 'cancelled' && (
         <div className="mt-6 bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Admin Actions</h2>
           <p className="text-sm text-gray-600 mb-4">
             Locking the roster will confirm the session and generate payment requests for all guests.
             The cost per guest will be fixed based on the current headcount.
           </p>
-          <button
-            onClick={handleLockRoster}
-            disabled={lockingRoster || (costSummary?.total_players || 0) < session.min_players}
-            className="w-full sm:w-auto bg-[#3CBBB1] text-white py-2 px-6 rounded-md hover:bg-[#35a8a0] focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium"
-          >
-            {lockingRoster ? 'Locking Roster...' : '🔒 Lock Roster & Generate Payments'}
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleLockRoster}
+              disabled={lockingRoster || (costSummary?.total_players || 0) < session.min_players}
+              className="bg-[#3CBBB1] text-white py-2 px-6 rounded-md hover:bg-[#35a8a0] focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium"
+            >
+              {lockingRoster ? 'Locking Roster...' : '🔒 Lock Roster & Generate Payments'}
+            </button>
+            <button
+              onClick={handleCancelSession}
+              className="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition"
+            >
+              Cancel Session
+            </button>
+            <button
+              onClick={handleDeleteSession}
+              disabled={deletingSession}
+              className="text-red-600 hover:text-red-700 py-2 px-4 transition"
+            >
+              {deletingSession ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
           {(costSummary?.total_players || 0) < session.min_players && (
             <p className="text-sm text-yellow-600 mt-2">
               Cannot lock roster until minimum players ({session.min_players}) are committed.
@@ -610,16 +706,64 @@ export default function SessionDetails() {
         </div>
       )}
 
+      {/* Cancelled Session Banner */}
+      {session.status === 'cancelled' && (
+        <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-red-600">❌</span>
+                <span className="font-medium text-red-800">Session Cancelled</span>
+              </div>
+              <p className="text-sm text-red-700 mt-1">
+                This session has been cancelled.
+              </p>
+            </div>
+            {isOwner && (
+              <button
+                onClick={handleDeleteSession}
+                disabled={deletingSession}
+                className="text-sm bg-red-100 border border-red-300 text-red-700 px-3 py-1.5 rounded hover:bg-red-200 disabled:opacity-50 transition"
+              >
+                {deletingSession ? 'Deleting...' : '🗑️ Delete Session'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Roster Locked Badge */}
       {session.roster_locked && (
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <span className="text-blue-600">🔒</span>
-            <span className="font-medium text-blue-800">Roster Locked</span>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-blue-600">🔒</span>
+                <span className="font-medium text-blue-800">Roster Locked</span>
+              </div>
+              <p className="text-sm text-blue-700 mt-1">
+                The participant list and cost per guest are now fixed.
+              </p>
+            </div>
+            {isOwner && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleUnlockRoster}
+                  disabled={unlockingRoster}
+                  className="text-sm bg-white border border-blue-300 text-blue-700 px-3 py-1.5 rounded hover:bg-blue-100 disabled:opacity-50 transition"
+                >
+                  {unlockingRoster ? 'Unlocking...' : '🔓 Unlock'}
+                </button>
+                <button
+                  onClick={handleDeleteSession}
+                  disabled={deletingSession}
+                  className="text-sm text-red-600 hover:text-red-700 px-2 py-1.5 transition"
+                >
+                  {deletingSession ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            )}
           </div>
-          <p className="text-sm text-blue-700 mt-1">
-            The participant list and cost per guest are now fixed.
-          </p>
         </div>
       )}
 

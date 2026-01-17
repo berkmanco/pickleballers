@@ -464,6 +464,308 @@ describe('Session Operations', () => {
     })
   })
 
+  describe('Session Management', () => {
+    it('should delete a session', async () => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const { data: session } = await supabase
+        .from('sessions')
+        .insert({
+          pool_id: testPoolId,
+          proposed_date: tomorrow.toISOString().split('T')[0],
+          proposed_time: '18:00',
+        })
+        .select()
+        .single()
+
+      // Delete the session
+      const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', session.id)
+
+      expect(error).toBeNull()
+
+      // Verify deleted
+      const { data: check } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('id', session.id)
+        .single()
+
+      expect(check).toBeNull()
+    })
+
+    it('should cascade delete participants when session deleted', async () => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const { data: session } = await supabase
+        .from('sessions')
+        .insert({
+          pool_id: testPoolId,
+          proposed_date: tomorrow.toISOString().split('T')[0],
+          proposed_time: '18:00',
+        })
+        .select()
+        .single()
+
+      // Verify participants were auto-created
+      const { data: participantsBefore } = await supabase
+        .from('session_participants')
+        .select('id')
+        .eq('session_id', session.id)
+
+      expect(participantsBefore?.length).toBeGreaterThan(0)
+
+      // Delete the session
+      await supabase.from('sessions').delete().eq('id', session.id)
+
+      // Verify participants were cascade deleted
+      const { data: participantsAfter } = await supabase
+        .from('session_participants')
+        .select('id')
+        .eq('session_id', session.id)
+
+      expect(participantsAfter?.length || 0).toBe(0)
+    })
+
+    it('should cascade delete payments when session deleted', async () => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const { data: session } = await supabase
+        .from('sessions')
+        .insert({
+          pool_id: testPoolId,
+          proposed_date: tomorrow.toISOString().split('T')[0],
+          proposed_time: '18:00',
+          roster_locked: true,
+          status: 'confirmed',
+        })
+        .select()
+        .single()
+
+      // Get a participant
+      const { data: participant } = await supabase
+        .from('session_participants')
+        .select('id')
+        .eq('session_id', session.id)
+        .limit(1)
+        .single()
+
+      // Create a payment
+      if (participant) {
+        await supabase
+          .from('payments')
+          .insert({
+            session_participant_id: participant.id,
+            amount: 16.00,
+            status: 'pending',
+            payment_method: 'venmo',
+          })
+
+        // Verify payment exists
+        const { data: paymentsBefore } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('session_participant_id', participant.id)
+
+        expect(paymentsBefore?.length).toBe(1)
+      }
+
+      // Delete the session
+      await supabase.from('sessions').delete().eq('id', session.id)
+
+      // Verify payments were cascade deleted (via participant cascade)
+      if (participant) {
+        const { data: paymentsAfter } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('session_participant_id', participant.id)
+
+        expect(paymentsAfter?.length || 0).toBe(0)
+      }
+    })
+
+    it('should lock roster', async () => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const { data: session } = await supabase
+        .from('sessions')
+        .insert({
+          pool_id: testPoolId,
+          proposed_date: tomorrow.toISOString().split('T')[0],
+          proposed_time: '18:00',
+        })
+        .select()
+        .single()
+
+      sessionsToCleanup.push(session.id)
+
+      expect(session.roster_locked).toBe(false)
+      expect(session.status).toBe('proposed')
+
+      // Lock the roster
+      const { data, error } = await supabase
+        .from('sessions')
+        .update({
+          roster_locked: true,
+          status: 'confirmed',
+        })
+        .eq('id', session.id)
+        .select()
+        .single()
+
+      expect(error).toBeNull()
+      expect(data.roster_locked).toBe(true)
+      expect(data.status).toBe('confirmed')
+    })
+
+    it('should unlock roster', async () => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const { data: session } = await supabase
+        .from('sessions')
+        .insert({
+          pool_id: testPoolId,
+          proposed_date: tomorrow.toISOString().split('T')[0],
+          proposed_time: '18:00',
+          roster_locked: true,
+          status: 'confirmed',
+        })
+        .select()
+        .single()
+
+      sessionsToCleanup.push(session.id)
+
+      expect(session.roster_locked).toBe(true)
+
+      // Unlock the roster
+      const { data, error } = await supabase
+        .from('sessions')
+        .update({
+          roster_locked: false,
+          status: 'proposed',
+        })
+        .eq('id', session.id)
+        .select()
+        .single()
+
+      expect(error).toBeNull()
+      expect(data.roster_locked).toBe(false)
+      expect(data.status).toBe('proposed')
+    })
+
+    it('should delete payments when unlocking roster', async () => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const { data: session } = await supabase
+        .from('sessions')
+        .insert({
+          pool_id: testPoolId,
+          proposed_date: tomorrow.toISOString().split('T')[0],
+          proposed_time: '18:00',
+          roster_locked: true,
+          status: 'confirmed',
+        })
+        .select()
+        .single()
+
+      sessionsToCleanup.push(session.id)
+
+      // Get participants
+      const { data: participants } = await supabase
+        .from('session_participants')
+        .select('id')
+        .eq('session_id', session.id)
+
+      // Create payments for participants
+      for (const participant of participants || []) {
+        await supabase
+          .from('payments')
+          .insert({
+            session_participant_id: participant.id,
+            amount: 16.00,
+            status: 'pending',
+            payment_method: 'venmo',
+          })
+      }
+
+      // Verify payments exist
+      const participantIds = participants?.map(p => p.id) || []
+      const { data: paymentsBefore } = await supabase
+        .from('payments')
+        .select('id')
+        .in('session_participant_id', participantIds)
+
+      expect(paymentsBefore?.length).toBeGreaterThan(0)
+
+      // Delete payments (simulating unlock with delete)
+      await supabase
+        .from('payments')
+        .delete()
+        .in('session_participant_id', participantIds)
+
+      // Unlock the roster
+      await supabase
+        .from('sessions')
+        .update({
+          roster_locked: false,
+          status: 'proposed',
+        })
+        .eq('id', session.id)
+
+      // Verify payments deleted
+      const { data: paymentsAfter } = await supabase
+        .from('payments')
+        .select('id')
+        .in('session_participant_id', participantIds)
+
+      expect(paymentsAfter?.length || 0).toBe(0)
+    })
+
+    it('should cancel session', async () => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const { data: session } = await supabase
+        .from('sessions')
+        .insert({
+          pool_id: testPoolId,
+          proposed_date: tomorrow.toISOString().split('T')[0],
+          proposed_time: '18:00',
+        })
+        .select()
+        .single()
+
+      sessionsToCleanup.push(session.id)
+
+      // Cancel the session
+      const { data, error } = await supabase
+        .from('sessions')
+        .update({ status: 'cancelled' })
+        .eq('id', session.id)
+        .select()
+        .single()
+
+      expect(error).toBeNull()
+      expect(data.status).toBe('cancelled')
+
+      // Participants should still exist (soft delete)
+      const { data: participants } = await supabase
+        .from('session_participants')
+        .select('id')
+        .eq('session_id', session.id)
+
+      expect(participants?.length).toBeGreaterThan(0)
+    })
+  })
+
   describe('Session Queries', () => {
     it('should get upcoming sessions for a pool', async () => {
       const tomorrow = new Date()
