@@ -165,18 +165,55 @@ src/
 │   ├── supabase.ts
 │   ├── pools.ts
 │   ├── sessions.ts
-│   └── sessionParticipants.ts
+│   ├── payments.ts
+│   ├── notifications.ts
+│   └── utils.ts
 ├── pages/         # Route pages
 └── App.tsx
 
 supabase/
 ├── config.toml    # Local Supabase config
 ├── migrations/    # Database migrations
+├── functions/     # Edge Functions
+│   ├── notify/    # Email/SMS notifications
+│   └── parse-venmo/ # Venmo email parsing
 └── seed.sql       # Local dev seed data
 
+tests/
+├── setup.ts       # Test utilities & helpers
+├── notifications.test.ts
+├── pools.test.ts
+├── sessions.test.ts
+├── registration.test.ts
+├── payments.test.ts
+└── venmo-parser.test.ts
+
 docs/
-└── ARCHITECTURE.md  # This file
+├── ARCHITECTURE.md
+├── SMOKE_TEST.md
+├── VENMO_INTEGRATION.md
+└── CLOUDFLARE_SETUP.md
 ```
+
+## Testing
+
+**123 automated tests** covering core functionality:
+
+```bash
+npm test              # Run all tests
+npm run test:watch    # Watch mode
+```
+
+| Test Suite | Tests | Coverage |
+|------------|-------|----------|
+| `notifications.test.ts` | 10 | All notification types |
+| `pools.test.ts` | 12 | Pool CRUD, players, links |
+| `sessions.test.ts` | 15 | Session lifecycle |
+| `registration.test.ts` | 14 | Full registration flow |
+| `payments.test.ts` | 16 | Payment CRUD, Venmo links |
+| `venmo-parser.test.ts` | 57 | Email parsing, auto-match |
+
+See `docs/SMOKE_TEST.md` for manual testing checklist.
 
 ## Local Development
 

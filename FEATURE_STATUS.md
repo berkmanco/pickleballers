@@ -6,16 +6,18 @@
 - Create pools with name/description
 - View pools you own or are a member of
 - Pool details page with player list
-- Generate registration links
+- Generate registration links (auto-copy to clipboard)
 
 ### 2. Player Registration
 - One-time registration links
 - Magic link authentication
 - Auto-link player records to auth users
 - Player added to pool on registration
+- SMS consent checkbox with Terms link
 
 ### 3. Session Proposals
 - Create sessions with date/time/location
+- Court numbers field
 - View sessions in pool
 - Session details page
 - Admin auto-added as first participant
@@ -36,11 +38,12 @@
 - Lock roster button for admins (confirms session)
 - Payment records created automatically when roster locks
 - Cost per guest calculated and frozen at lock time
-- Venmo payment links generated for each guest
+- Venmo payment links with hashtags for auto-matching:
+  - Admin "Request" → `txn=charge` to guest
+  - Player "Pay" → `txn=pay` to admin
 - Payment status tracking (pending, paid, forgiven)
 - Admin can mark payments as paid or forgiven
 - Payment summary with progress bar
-- Payment list on session details page
 
 ### 7. Notifications
 - Email notifications via Resend
@@ -49,46 +52,58 @@
   - New session created → email to pool members
   - Roster locked → payment request email to guests
   - Payment reminder → email to guests with pending payments
-  - Session reminder (24h) → email + optional SMS
+  - Session reminder → email + optional SMS (today/tomorrow logic)
   - Waitlist promoted → email + SMS
 - Notification preferences in Settings page
 - Notification log for auditing
+- Rate limiting (600ms between emails)
 
----
-
-## Current Feature: Venmo Email Integration 🚧
-
-### Completed
-- Supabase Edge Function to receive and parse Venmo emails
-- Database schema for `venmo_transactions` table
-- Regex parsing for sender, amount, note, hashtag
+### 8. Venmo Auto-Reconciliation
+- Cloudflare Email Worker receives Venmo emails
+- Supabase Edge Function parses transactions
 - Auto-matching by hashtag (`#dinkup-{payment_id}`)
 - Fuzzy matching by amount + sender name
-- Venmo links now include payment ID hashtag for auto-matching
-- Cloudflare Email Worker boilerplate
+- `venmo_transactions` table for audit trail
 
-### Manual Setup Required
-- Cloudflare Email Worker deployment
-- Gmail filter/forwarding configuration
-- Environment secrets configuration
+### 9. PWA Support
+- Installable on iOS and Android
+- Offline caching
+- App icons (192x192, 512x512)
 
-### Documentation
-- See `docs/VENMO_INTEGRATION.md` for setup instructions
+### 10. Testing
+- **123 automated tests** via Vitest
+- Coverage: pools, sessions, registration, payments, notifications, venmo-parser
+- Run with `npm test`
 
 ---
 
 ## Future Features 📋
 
-### Session Reminders
-- Automated 24h session reminders (cron job / scheduled function)
+### High Priority
+- Delete a session
+- Unlock a locked session
+- Add existing player to session
 
-### Waitlist Auto-Promotion
-- When someone drops, auto-promote from waitlist
-- Notify promoted player
+### Medium Priority
+- Players page with detailed view
+- Auto-login after registration
+- Custom Supabase auth email templates
 
-### Court Booking Integration
-- CourtReserve availability checking
-- Booking automation (if API available)
+### Backlog
+- CourtReserve integration
+- Admin can set costs or make free (outdoor sessions)
+- Multi-use registration links
+- Open registration (anyone can join without link)
+- Granular notification settings
+- Dynamic OG meta tags for session links
+
+---
+
+## Known Issues 🐛
+
+- Safari magic link may not complete login (cross-origin redirect)
+- Gmail app → Chrome handoff can lose token
+- SMS requires Twilio toll-free verification
 
 ---
 
@@ -102,3 +117,6 @@ Use `SECURITY DEFINER` functions for complex membership checks to avoid infinite
 
 ### useEffect Dependencies
 Use stable primitives like `user?.id` instead of object references like `user` to avoid infinite loops.
+
+### Test Mode
+Edge functions check `TEST_MODE` or `IS_LOCAL` to skip real email/SMS during testing.

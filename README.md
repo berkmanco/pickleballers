@@ -2,6 +2,8 @@
 
 A self-service web app for coordinating pickleball sessions with your crew.
 
+**Live**: [dinkup.link](https://www.dinkup.link)
+
 ## The Problem
 
 Coordinating pickleball games involves too much manual work:
@@ -15,15 +17,22 @@ Coordinating pickleball games involves too much manual work:
 
 - 📅 Admin proposes sessions
 - ✋ Players opt themselves in
-- 💰 Automatic payment requests at 24h before
+- 💰 Automatic payment requests when roster locks
 - 🔄 Automatic waitlist promotion
+- 🤖 Venmo auto-reconciliation via email parsing
 
 ## Tech Stack
 
-- **Frontend**: React + TypeScript + Vite + Tailwind CSS
-- **Backend**: Supabase (PostgreSQL + Auth)
-- **Auth**: Magic Links (passwordless)
-- **Payments**: Venmo links (manual reconciliation)
+| Component | Technology |
+|-----------|------------|
+| Frontend | React + TypeScript + Vite + Tailwind CSS |
+| Backend | Supabase (PostgreSQL + Auth + Edge Functions) |
+| Auth | Magic Links (passwordless) |
+| Email | Resend |
+| SMS | Twilio |
+| Payments | Venmo (with auto-reconciliation) |
+| Hosting | Vercel |
+| PWA | vite-plugin-pwa |
 
 ## Quick Start
 
@@ -40,31 +49,45 @@ VITE_SUPABASE_ANON_KEY=<anon-key>
 
 # Start dev server
 npm run dev
+
+# Run tests
+npm test
 ```
 
 ## Documentation
 
-- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - Technical architecture, database schema, workflows
+- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - Technical architecture, database schema
+- **[docs/SMOKE_TEST.md](./docs/SMOKE_TEST.md)** - Testing checklist
+- **[docs/VENMO_INTEGRATION.md](./docs/VENMO_INTEGRATION.md)** - Venmo auto-matching setup
 - **[LOCAL_DEV.md](./LOCAL_DEV.md)** - Local development setup
 - **[FEATURE_STATUS.md](./FEATURE_STATUS.md)** - Current feature status
 
 ## Features
 
 ### ✅ Completed
-- Pool management (create, view, manage)
+- Pool management (create, invite players, manage)
 - Player registration (one-time links, magic link auth)
-- Session proposals (create, view sessions)
-- Player opt-in system (commit, maybe, drop out)
-- Cost calculation (dynamic based on player count)
-- Privacy controls (sensitive info hidden from non-admins)
-
-### 🚧 In Progress
-- Payment tracking
+- Session proposals (create, view, opt-in)
+- Dynamic cost calculation
+- Payment tracking (Venmo links with hashtags)
+- Venmo auto-reconciliation (email parsing)
+- Notifications (email via Resend, SMS via Twilio)
+- PWA support (installable, offline-capable)
+- **123 automated tests**
 
 ### 📋 Planned
-- Notifications (email/SMS)
-- Waitlist auto-promotion
-- Court booking integration
+- Delete/unlock sessions
+- CourtReserve integration
+- Granular notification settings
+
+## Testing
+
+```bash
+npm test                    # Run all 123 tests
+npm run test:notifications  # Run notification tests
+npm run test:payments       # Run payment tests
+npm run test:venmo-parser   # Run Venmo parser tests
+```
 
 ## Cost Model
 
