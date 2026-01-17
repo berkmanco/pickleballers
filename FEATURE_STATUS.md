@@ -92,9 +92,17 @@
 - Auto-formats phone to E.164, strips @ from Venmo
 
 ### 13. Testing
-- **143 automated tests** via Vitest
-- Coverage: pools, sessions, registration, payments, notifications, venmo-parser
+- **155 automated tests** via Vitest
+- Coverage: pools, sessions, registration, payments, notifications, venmo-parser, courtreserve
 - Run with `npm test`
+
+### 14. CourtReserve Integration
+- **Check court availability** at Pickle Shack (no login required)
+- Fetches real-time data from CourtReserve's public API
+- Edge function: `courtreserve`
+- UI: "Check Availability" button on Create Session page (for Pickle Shack location)
+- Auto-fills court numbers when courts are available
+- Shows available courts for requested date/time/duration
 
 ---
 
@@ -109,7 +117,6 @@
 - Custom Supabase auth email templates
 
 ### Backlog
-- CourtReserve integration
 - Admin can set costs or make free (outdoor sessions)
 - Multi-use registration links
 - Open registration (anyone can join without link)
