@@ -65,36 +65,50 @@ export default function SessionDetails() {
     async function loadSession() {
       try {
         setLoading(true)
-        const sessionData = await getSession(sessionId)
+        
+        // Phase 1: Load session and player ID in parallel (independent)
+        const [sessionData, playerId] = await Promise.all([
+          getSession(sessionId),
+          getCurrentPlayerId(userId),
+        ])
+        
         setSession(sessionData)
-
-        const owner = await isPoolOwner(sessionData.pool_id, userId)
-        setIsOwner(owner)
-
-        // Get current player ID
-        const playerId = await getCurrentPlayerId(userId)
         setCurrentPlayerId(playerId)
 
-        // Load participants
-        await loadParticipants(sessionData.id, playerId)
+        // Phase 2: Now that we have session, load dependent data in parallel
+        const [owner, participantsData, costSummaryData] = await Promise.all([
+          isPoolOwner(sessionData.pool_id, userId),
+          getSessionParticipants(sessionData.id),
+          getSessionCostSummary(sessionData.id).catch(() => null),
+        ])
+        
+        setIsOwner(owner)
+        setParticipants(participantsData)
+        setCostSummary(costSummaryData)
+        setLoadingParticipants(false)
+        
+        // Set current player status from participants
+        if (playerId) {
+          const myParticipation = participantsData.find(p => p.player_id === playerId)
+          setCurrentPlayerStatus(myParticipation?.status || null)
+        }
 
-        // Load available players for admin (to add players)
+        // Phase 3: Owner-only and roster-locked data in parallel
+        const phase3Promises: Promise<any>[] = []
+        
         if (owner) {
-          const players = await getPoolPlayersNotInSession(sessionData.pool_id, sessionData.id)
-          setAvailablePlayers(players)
+          phase3Promises.push(
+            getPoolPlayersNotInSession(sessionData.pool_id, sessionData.id)
+              .then(players => setAvailablePlayers(players))
+          )
         }
-
-        // Load cost summary
-        try {
-          const summary = await getSessionCostSummary(sessionData.id)
-          setCostSummary(summary)
-        } catch (err) {
-          console.error('Failed to load cost summary:', err)
-        }
-
-        // Load payments if roster is locked
+        
         if (sessionData.roster_locked) {
-          await loadPayments(sessionData.id)
+          phase3Promises.push(loadPayments(sessionData.id))
+        }
+        
+        if (phase3Promises.length > 0) {
+          await Promise.all(phase3Promises)
         }
       } catch (err: any) {
         setError(err.message || 'Failed to load session')
@@ -443,13 +457,15 @@ export default function SessionDetails() {
     )
   }
 
-  const sessionDate = new Date(session.proposed_date)
+  // Append T00:00:00 to force local timezone interpretation (not UTC)
+  const sessionDate = new Date(`${session.proposed_date}T00:00:00`)
   const sessionDateTime = new Date(
     `${session.proposed_date}T${session.proposed_time}`
   )
   const isPast = sessionDateTime < new Date()
-  const isToday =
-    sessionDate.toDateString() === new Date().toDateString()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const isToday = sessionDate.getTime() === today.getTime()
 
   return (
     <div className="max-w-4xl mx-auto mt-8 px-4">

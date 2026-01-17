@@ -379,19 +379,32 @@ export async function getOpenSessionsToJoin(playerId: string): Promise<SessionWi
 
   const today = new Date().toISOString().split('T')[0]
 
-  // First get all pools the user is in
-  const { data: poolData, error: poolError } = await supabase
-    .from('pool_players')
-    .select('pool_id')
-    .eq('player_id', playerId)
-    .eq('is_active', true)
+  // Run pool lookup and participations in parallel (independent of each other)
+  const [poolResult, participationsResult] = await Promise.all([
+    supabase
+      .from('pool_players')
+      .select('pool_id')
+      .eq('player_id', playerId)
+      .eq('is_active', true),
+    supabase
+      .from('session_participants')
+      .select('session_id')
+      .eq('player_id', playerId)
+      .in('status', ['committed', 'paid', 'maybe'])
+  ])
 
-  if (poolError) throw poolError
+  if (poolResult.error) throw poolResult.error
+  if (participationsResult.error) throw participationsResult.error
+
+  const poolData = poolResult.data
   if (!poolData || poolData.length === 0) return []
 
   const poolIds = poolData.map((p: { pool_id: string }) => p.pool_id)
+  const joinedSessionIds = new Set(
+    (participationsResult.data || []).map((p: { session_id: string }) => p.session_id)
+  )
 
-  // Get all upcoming sessions in those pools
+  // Get upcoming sessions in those pools
   const { data: sessions, error: sessionsError } = await supabase
     .from('sessions')
     .select(`
@@ -404,24 +417,13 @@ export async function getOpenSessionsToJoin(playerId: string): Promise<SessionWi
     `)
     .in('pool_id', poolIds)
     .in('status', ['proposed', 'confirmed'])
-    .eq('roster_locked', false)  // Only open sessions
+    .eq('roster_locked', false)
     .gte('proposed_date', today)
     .order('proposed_date', { ascending: true })
     .order('proposed_time', { ascending: true })
 
   if (sessionsError) throw sessionsError
   if (!sessions || sessions.length === 0) return []
-
-  // Get sessions the user is already in
-  const { data: participations, error: partError } = await supabase
-    .from('session_participants')
-    .select('session_id')
-    .eq('player_id', playerId)
-    .in('status', ['committed', 'paid', 'maybe'])
-
-  if (partError) throw partError
-
-  const joinedSessionIds = new Set((participations || []).map((p: { session_id: string }) => p.session_id))
 
   // Filter out sessions user has already joined
   return sessions.filter((s: { id: string }) => !joinedSessionIds.has(s.id)) as SessionWithPool[]

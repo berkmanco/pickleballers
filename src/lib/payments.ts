@@ -164,32 +164,33 @@ export async function createPaymentsForSession(
     throw new Error('Database connection not available')
   }
 
-  // Get cost summary to determine per-guest amount
-  const costSummary = await getSessionCostSummary(sessionId)
+  // Get cost summary and participants in parallel
+  const [costSummary, participantsResult] = await Promise.all([
+    getSessionCostSummary(sessionId),
+    supabase
+      .from('session_participants')
+      .select(`
+        id,
+        player_id,
+        is_admin,
+        status,
+        players (
+          id,
+          name,
+          venmo_account
+        )
+      `)
+      .eq('session_id', sessionId)
+      .in('status', ['committed', 'paid'])
+      .eq('is_admin', false)
+  ])
   
   if (costSummary.guest_count === 0) {
     return [] // No guests, no payments needed
   }
 
-  // Get all committed guests (non-admin players)
-  const { data: participants, error: participantsError } = await supabase
-    .from('session_participants')
-    .select(`
-      id,
-      player_id,
-      is_admin,
-      status,
-      players (
-        id,
-        name,
-        venmo_account
-      )
-    `)
-    .eq('session_id', sessionId)
-    .in('status', ['committed', 'paid'])
-    .eq('is_admin', false)
-
-  if (participantsError) throw participantsError
+  if (participantsResult.error) throw participantsResult.error
+  const participants = participantsResult.data
 
   if (!participants || participants.length === 0) {
     return []

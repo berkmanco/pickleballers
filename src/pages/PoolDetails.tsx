@@ -48,18 +48,20 @@ export default function PoolDetails() {
       try {
         setLoading(true)
         setLoadingPlayers(true)
+        
+        // First get the pool
         const poolData = await getPool(poolIdentifier)
         setPool(poolData)
         
-        const owner = await isPoolOwner(poolData.id, userId)
+        // Then load everything else in parallel
+        const [owner, poolPlayers, poolSessions] = await Promise.all([
+          isPoolOwner(poolData.id, userId),
+          getPoolPlayers(poolData.id),
+          getUpcomingSessions(poolData.id),
+        ])
+        
         setIsOwner(owner)
-
-        // Load players
-        const poolPlayers = await getPoolPlayers(poolData.id)
         setPlayers(poolPlayers)
-
-        // Load sessions
-        const poolSessions = await getUpcomingSessions(poolData.id)
         setSessions(poolSessions)
 
         // Load registration links and existing players if owner
@@ -460,9 +462,12 @@ export default function PoolDetails() {
           ) : (
             <div className="space-y-2">
               {sessions.map((session) => {
-                const sessionDate = new Date(session.proposed_date)
-                const isToday = sessionDate.toDateString() === new Date().toDateString()
-                const isPast = sessionDate < new Date() && !isToday
+                // Append T00:00:00 to force local timezone interpretation (not UTC)
+                const sessionDate = new Date(`${session.proposed_date}T00:00:00`)
+                const today = new Date()
+                today.setHours(0, 0, 0, 0)
+                const isToday = sessionDate.getTime() === today.getTime()
+                const isPast = sessionDate < today
 
                 return (
                   <Link

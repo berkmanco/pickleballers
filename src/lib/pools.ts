@@ -22,30 +22,31 @@ export async function getPools(userId: string, userEmail?: string) {
     throw new Error('Database not initialized')
   }
   
-  // Get pools user owns
-  const { data: ownedPools, error: ownedError } = await supabase
-    .from('pools')
-    .select('*')
-    .eq('owner_id', userId)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false })
+  // Run owned pools and player lookup in parallel
+  const [ownedResult, playerResult] = await Promise.all([
+    supabase
+      .from('pools')
+      .select('*')
+      .eq('owner_id', userId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('players')
+      .select('id')
+      .eq('user_id', userId)
+      .single()
+  ])
 
-  if (ownedError) throw ownedError
+  if (ownedResult.error) throw ownedResult.error
+  const ownedPools = ownedResult.data
 
-  // Get pools user is a member of (via pool_players)
-  // First try to find player record by user_id
-  let { data: playerRecord } = await supabase
-    .from('players')
-    .select('id')
-    .eq('user_id', userId)
-    .single()
+  let playerRecord = playerResult.data
 
-  // If not found and email provided, try to link by email
+  // If not found and email provided, try to link by email (rare case)
   if (!playerRecord && userEmail) {
     try {
       const playerId = await linkPlayerToUser(userId, userEmail)
       if (playerId) {
-        // Retry the query after linking
         const { data: retryRecord } = await supabase
           .from('players')
           .select('id')
@@ -313,28 +314,27 @@ export async function getPlayersNotInPool(poolId: string): Promise<{ id: string;
     throw new Error('Database connection not available')
   }
 
-  // Get all active players
-  const { data: allPlayers, error: playersError } = await supabase
-    .from('players')
-    .select('id, name, email')
-    .eq('is_active', true)
-    .order('name', { ascending: true })
+  // Run both queries in parallel
+  const [allPlayersResult, poolPlayersResult] = await Promise.all([
+    supabase
+      .from('players')
+      .select('id, name, email')
+      .eq('is_active', true)
+      .order('name', { ascending: true }),
+    supabase
+      .from('pool_players')
+      .select('player_id')
+      .eq('pool_id', poolId)
+      .eq('is_active', true)
+  ])
 
-  if (playersError) throw playersError
+  if (allPlayersResult.error) throw allPlayersResult.error
+  if (poolPlayersResult.error) throw poolPlayersResult.error
 
-  // Get players already in this pool
-  const { data: poolPlayers, error: poolPlayersError } = await supabase
-    .from('pool_players')
-    .select('player_id')
-    .eq('pool_id', poolId)
-    .eq('is_active', true)
-
-  if (poolPlayersError) throw poolPlayersError
-
-  const poolPlayerIds = new Set((poolPlayers || []).map(pp => pp.player_id))
+  const poolPlayerIds = new Set((poolPlayersResult.data || []).map(pp => pp.player_id))
 
   // Filter to players not in pool
-  return (allPlayers || []).filter(p => !poolPlayerIds.has(p.id))
+  return (allPlayersResult.data || []).filter(p => !poolPlayerIds.has(p.id))
 }
 
 // Add an existing player to a pool

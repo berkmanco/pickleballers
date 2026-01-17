@@ -23,12 +23,12 @@ export default function Dashboard() {
 
     async function loadDashboard() {
       try {
-        // Load pools
-        const poolsData = await getPools(userId, userEmail || undefined)
+        // Load pools and player ID in parallel (independent)
+        const [poolsData, playerId] = await Promise.all([
+          getPools(userId, userEmail || undefined),
+          getCurrentPlayerId(userId, userEmail || undefined),
+        ])
         setPools(poolsData)
-
-        // Get player ID for action queries
-        const playerId = await getCurrentPlayerId(userId, userEmail || undefined)
         
         if (playerId) {
           // Load action items in parallel
@@ -54,9 +54,15 @@ export default function Dashboard() {
 
   // Helper to format session date/time
   const formatSessionDateTime = (date: string, time: string) => {
-    const sessionDate = new Date(date)
-    const isToday = sessionDate.toDateString() === new Date().toDateString()
-    const isTomorrow = sessionDate.toDateString() === new Date(Date.now() + 86400000).toDateString()
+    // Append T00:00:00 to force local timezone interpretation (not UTC)
+    const sessionDate = new Date(`${date}T00:00:00`)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    
+    const isToday = sessionDate.getTime() === today.getTime()
+    const isTomorrow = sessionDate.getTime() === tomorrow.getTime()
     
     const dayStr = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : sessionDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
     const timeStr = new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
