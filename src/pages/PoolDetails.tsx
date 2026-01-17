@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { getPool, isPoolOwner, getPoolPlayers, Pool, Player } from '../lib/pools'
+import { getPool, isPoolOwner, getPoolPlayers, createPlayerAndAddToPool, Pool, Player } from '../lib/pools'
 import { formatPhone } from '../lib/utils'
 import {
   createRegistrationLink,
@@ -24,6 +24,14 @@ export default function PoolDetails() {
   const [registrationLinks, setRegistrationLinks] = useState<RegistrationLink[]>([])
   const [generatingLink, setGeneratingLink] = useState(false)
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
+  
+  // Add player form state
+  const [showAddPlayer, setShowAddPlayer] = useState(false)
+  const [addingPlayer, setAddingPlayer] = useState(false)
+  const [newPlayerName, setNewPlayerName] = useState('')
+  const [newPlayerEmail, setNewPlayerEmail] = useState('')
+  const [newPlayerPhone, setNewPlayerPhone] = useState('')
+  const [newPlayerVenmo, setNewPlayerVenmo] = useState('')
 
   useEffect(() => {
     const identifier = slug || id
@@ -91,6 +99,36 @@ export default function PoolDetails() {
     navigator.clipboard.writeText(url)
     setCopiedToken(token)
     setTimeout(() => setCopiedToken(null), 2000)
+  }
+
+  const handleAddPlayer = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!pool || !newPlayerName.trim() || !newPlayerVenmo.trim()) return
+
+    try {
+      setAddingPlayer(true)
+      setError(null)
+      const newPlayer = await createPlayerAndAddToPool(pool.id, {
+        name: newPlayerName.trim(),
+        email: newPlayerEmail.trim() || undefined,
+        phone: newPlayerPhone.trim() || undefined,
+        venmo_account: newPlayerVenmo.trim(),
+      })
+      
+      // Add to players list
+      setPlayers([...players, newPlayer])
+      
+      // Reset form
+      setNewPlayerName('')
+      setNewPlayerEmail('')
+      setNewPlayerPhone('')
+      setNewPlayerVenmo('')
+      setShowAddPlayer(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to add player')
+    } finally {
+      setAddingPlayer(false)
+    }
   }
 
   if (loading) {
@@ -194,6 +232,87 @@ export default function PoolDetails() {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Add Player Form (Admin only) */}
+          {isOwner && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              {!showAddPlayer ? (
+                <button
+                  onClick={() => setShowAddPlayer(true)}
+                  className="text-sm text-[#3CBBB1] hover:text-[#35a8a0] transition"
+                >
+                  + Add Player Manually
+                </button>
+              ) : (
+                <form onSubmit={handleAddPlayer} className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-700">Add Player</h3>
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Name *"
+                      value={newPlayerName}
+                      onChange={(e) => setNewPlayerName(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center">
+                      <span className="px-3 py-2 text-sm bg-gray-100 border border-r-0 border-gray-300 rounded-l-md text-gray-500">@</span>
+                      <input
+                        type="text"
+                        placeholder="Venmo username *"
+                        value={newPlayerVenmo}
+                        onChange={(e) => setNewPlayerVenmo(e.target.value.replace(/^@/, ''))}
+                        required
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <input
+                      type="email"
+                      placeholder="Email (optional)"
+                      value={newPlayerEmail}
+                      onChange={(e) => setNewPlayerEmail(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="tel"
+                      placeholder="Phone (optional)"
+                      value={newPlayerPhone}
+                      onChange={(e) => setNewPlayerPhone(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={addingPlayer || !newPlayerName.trim() || !newPlayerVenmo.trim()}
+                      className="flex-1 bg-[#3CBBB1] text-white py-2 px-4 text-sm rounded-md hover:bg-[#35a8a0] focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      {addingPlayer ? 'Adding...' : 'Add Player'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddPlayer(false)
+                        setNewPlayerName('')
+                        setNewPlayerEmail('')
+                        setNewPlayerPhone('')
+                        setNewPlayerVenmo('')
+                      }}
+                      className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
 

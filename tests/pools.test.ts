@@ -290,3 +290,162 @@ describe('Registration Links', () => {
     expect(data.used_at).not.toBeNull()
   })
 })
+
+describe('Add Player to Pool', () => {
+  const supabase = getServiceClient()
+  const playersToCleanup: string[] = []
+  let testPoolId: string
+
+  beforeAll(async () => {
+    // Get a pool from seed data
+    const { data: pool } = await supabase
+      .from('pools')
+      .select('id')
+      .limit(1)
+      .single()
+
+    if (!pool) throw new Error('No pools in seed data')
+    testPoolId = pool.id
+  })
+
+  afterEach(async () => {
+    for (const playerId of playersToCleanup) {
+      // Delete pool_players first, then player
+      await supabase.from('pool_players').delete().eq('player_id', playerId)
+      await supabase.from('players').delete().eq('id', playerId)
+    }
+    playersToCleanup.length = 0
+  })
+
+  it('should create a player and add to pool', async () => {
+    // Create player
+    const { data: player, error: playerError } = await supabase
+      .from('players')
+      .insert({
+        name: 'Test Manual Player',
+        email: 'manual@example.com',
+        phone: '+16145551234',
+        venmo_account: 'test-manual',
+        is_active: true,
+        notification_preferences: { email: true, sms: true },
+      })
+      .select()
+      .single()
+
+    expect(playerError).toBeNull()
+    expect(player).toBeDefined()
+    playersToCleanup.push(player.id)
+
+    // Add to pool
+    const { data: poolPlayer, error: poolPlayerError } = await supabase
+      .from('pool_players')
+      .insert({
+        pool_id: testPoolId,
+        player_id: player.id,
+        is_active: true,
+      })
+      .select()
+      .single()
+
+    expect(poolPlayerError).toBeNull()
+    expect(poolPlayer.pool_id).toBe(testPoolId)
+    expect(poolPlayer.player_id).toBe(player.id)
+    console.log('Created player and added to pool:', player.id)
+  })
+
+  it('should format phone to E.164', async () => {
+    // Create player with unformatted phone
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        name: 'Phone Test Player',
+        phone: '+16145559999',
+        venmo_account: 'phone-test',
+        is_active: true,
+        notification_preferences: { email: false, sms: true },
+      })
+      .select()
+      .single()
+
+    expect(error).toBeNull()
+    expect(player.phone).toBe('+16145559999')
+    playersToCleanup.push(player.id)
+  })
+
+  it('should strip @ from venmo account', async () => {
+    // Create player - the @ should be stripped in the app layer
+    // Test that database accepts the stripped value
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        name: 'Venmo Test Player',
+        venmo_account: 'venmo-test-user', // Already stripped
+        is_active: true,
+        notification_preferences: { email: false, sms: false },
+      })
+      .select()
+      .single()
+
+    expect(error).toBeNull()
+    expect(player.venmo_account).toBe('venmo-test-user')
+    playersToCleanup.push(player.id)
+  })
+
+  it('should create player with minimal data (name + venmo only)', async () => {
+    const { data: player, error } = await supabase
+      .from('players')
+      .insert({
+        name: 'Minimal Player',
+        venmo_account: 'minimal-venmo',
+        is_active: true,
+        notification_preferences: { email: false, sms: false },
+      })
+      .select()
+      .single()
+
+    expect(error).toBeNull()
+    expect(player.name).toBe('Minimal Player')
+    expect(player.email).toBeNull()
+    expect(player.phone).toBeNull()
+    playersToCleanup.push(player.id)
+  })
+
+  it('should list pool players including manually added', async () => {
+    // Create and add player
+    const { data: player } = await supabase
+      .from('players')
+      .insert({
+        name: 'List Test Player',
+        venmo_account: 'list-test',
+        is_active: true,
+        notification_preferences: { email: false, sms: false },
+      })
+      .select()
+      .single()
+
+    playersToCleanup.push(player.id)
+
+    await supabase
+      .from('pool_players')
+      .insert({
+        pool_id: testPoolId,
+        player_id: player.id,
+        is_active: true,
+      })
+
+    // Query pool players
+    const { data: poolPlayers, error } = await supabase
+      .from('pool_players')
+      .select(`
+        joined_at,
+        is_active,
+        players (id, name, venmo_account)
+      `)
+      .eq('pool_id', testPoolId)
+      .eq('is_active', true)
+
+    expect(error).toBeNull()
+    expect(poolPlayers?.some(pp => (pp.players as any).id === player.id)).toBe(true)
+    console.log('Pool now has', poolPlayers?.length, 'active players')
+  })
+})

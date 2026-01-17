@@ -227,6 +227,86 @@ export async function getPoolPlayers(poolId: string) {
   })) as Player[]
 }
 
+// Convert phone number to E.164 format
+function toE164(phone: string): string {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length === 10) {
+    return `+1${digits}`
+  }
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `+${digits}`
+  }
+  return phone
+}
+
+// Interface for creating a new player
+export interface CreatePlayerData {
+  name: string
+  email?: string
+  phone?: string
+  venmo_account: string
+}
+
+// Create a new player and add them to a pool (admin action)
+// This bypasses the registration flow for admins to manually add players
+export async function createPlayerAndAddToPool(
+  poolId: string,
+  playerData: CreatePlayerData
+): Promise<Player> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  // Format phone to E.164 if provided
+  const formattedPhone = playerData.phone ? toE164(playerData.phone) : null
+
+  // Strip @ from venmo if present
+  const venmoAccount = playerData.venmo_account.replace(/^@/, '')
+
+  // Create the player record
+  const { data: player, error: playerError } = await supabase
+    .from('players')
+    .insert({
+      name: playerData.name,
+      email: playerData.email || null,
+      phone: formattedPhone,
+      venmo_account: venmoAccount,
+      is_active: true,
+      notification_preferences: {
+        email: !!playerData.email,
+        sms: !!playerData.phone,
+      },
+    })
+    .select()
+    .single()
+
+  if (playerError) {
+    console.error('Error creating player:', playerError)
+    throw playerError
+  }
+
+  // Add player to the pool
+  const { error: poolPlayerError } = await supabase
+    .from('pool_players')
+    .insert({
+      pool_id: poolId,
+      player_id: player.id,
+      is_active: true,
+    })
+
+  if (poolPlayerError) {
+    // Rollback: delete the player if we couldn't add to pool
+    await supabase.from('players').delete().eq('id', player.id)
+    console.error('Error adding player to pool:', poolPlayerError)
+    throw poolPlayerError
+  }
+
+  return {
+    ...player,
+    joined_at: new Date().toISOString(),
+  } as Player
+}
+
 // Get pool owner's player record (for Venmo account)
 export async function getPoolOwnerPlayer(poolId: string): Promise<Player | null> {
   if (!supabase) {
