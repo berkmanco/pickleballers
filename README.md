@@ -73,7 +73,7 @@ npm test
 - Venmo auto-reconciliation (email parsing)
 - Notifications (email via Resend, SMS via Twilio)
 - PWA support (installable, offline-capable)
-- **123 automated tests**
+- **130 automated tests**
 
 ### 📋 Planned
 - Delete/unlock sessions

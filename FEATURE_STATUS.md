@@ -70,8 +70,13 @@
 - Offline caching
 - App icons (192x192, 512x512)
 
-### 10. Testing
-- **123 automated tests** via Vitest
+### 10. Session Management
+- Delete session (cascade deletes participants/payments)
+- Unlock roster (resets to proposed, deletes payments)
+- Cancel session (soft delete, preserves data)
+
+### 11. Testing
+- **130 automated tests** via Vitest
 - Coverage: pools, sessions, registration, payments, notifications, venmo-parser
 - Run with `npm test`
 
@@ -80,8 +85,6 @@
 ## Future Features 📋
 
 ### High Priority
-- Delete a session
-- Unlock a locked session
 - Add existing player to session
 
 ### Medium Priority
