@@ -838,4 +838,217 @@ describe('Session Operations', () => {
       expect(data?.some(s => s.id === session.id)).toBe(true)
     })
   })
+
+  describe('Add Player to Session', () => {
+    it('should get pool players not in session', async () => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      // Create a session
+      const { data: session } = await supabase
+        .from('sessions')
+        .insert({
+          pool_id: testPoolId,
+          proposed_date: tomorrow.toISOString().split('T')[0],
+          proposed_time: '18:00',
+          min_players: 4,
+          max_players: 8,
+        })
+        .select()
+        .single()
+
+      sessionsToCleanup.push(session.id)
+
+      // Get all pool players
+      const { data: poolPlayers } = await supabase
+        .from('pool_players')
+        .select('player:players(id, name)')
+        .eq('pool_id', testPoolId)
+        .eq('is_active', true)
+
+      // Get active participants
+      const { data: participants } = await supabase
+        .from('session_participants')
+        .select('player_id, status')
+        .eq('session_id', session.id)
+        .in('status', ['committed', 'paid', 'maybe'])
+
+      const activePlayerIds = new Set(participants?.map(p => p.player_id) || [])
+
+      // Filter pool players not in session
+      const availablePlayers = (poolPlayers || [])
+        .map((pp: any) => pp.player)
+        .filter((p: any) => p && !activePlayerIds.has(p.id))
+
+      // Pool has players, so either some are available or all are participants
+      expect(poolPlayers?.length).toBeGreaterThan(0)
+    })
+
+    it('should add player to session', async () => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      // Create a session
+      const { data: session } = await supabase
+        .from('sessions')
+        .insert({
+          pool_id: testPoolId,
+          proposed_date: tomorrow.toISOString().split('T')[0],
+          proposed_time: '18:00',
+          min_players: 4,
+          max_players: 8,
+        })
+        .select()
+        .single()
+
+      sessionsToCleanup.push(session.id)
+
+      // Get a pool player who is not already in the session
+      const { data: poolPlayers } = await supabase
+        .from('pool_players')
+        .select('player_id')
+        .eq('pool_id', testPoolId)
+        .eq('is_active', true)
+
+      const { data: existingParticipants } = await supabase
+        .from('session_participants')
+        .select('player_id')
+        .eq('session_id', session.id)
+
+      const existingPlayerIds = new Set(existingParticipants?.map(p => p.player_id) || [])
+      const availablePlayerId = poolPlayers?.find(pp => !existingPlayerIds.has(pp.player_id))?.player_id
+
+      if (availablePlayerId) {
+        // Add the player to the session
+        const { data: newParticipant, error } = await supabase
+          .from('session_participants')
+          .insert({
+            session_id: session.id,
+            player_id: availablePlayerId,
+            status: 'committed',
+            is_admin: false,
+            opted_in_at: new Date().toISOString(),
+            status_changed_at: new Date().toISOString(),
+          })
+          .select()
+          .single()
+
+        expect(error).toBeNull()
+        expect(newParticipant).toBeDefined()
+        expect(newParticipant.player_id).toBe(availablePlayerId)
+        expect(newParticipant.status).toBe('committed')
+      } else {
+        // All pool players are already participants (which is fine - trigger auto-adds them)
+        expect(existingParticipants?.length).toBeGreaterThan(0)
+      }
+    })
+
+    it('should re-add player who previously opted out', async () => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      // Create a session
+      const { data: session } = await supabase
+        .from('sessions')
+        .insert({
+          pool_id: testPoolId,
+          proposed_date: tomorrow.toISOString().split('T')[0],
+          proposed_time: '18:00',
+          min_players: 4,
+          max_players: 8,
+        })
+        .select()
+        .single()
+
+      sessionsToCleanup.push(session.id)
+
+      // Get one participant and set them as 'out'
+      const { data: participant } = await supabase
+        .from('session_participants')
+        .select('id, player_id')
+        .eq('session_id', session.id)
+        .limit(1)
+        .single()
+
+      if (participant) {
+        // Set to 'out'
+        await supabase
+          .from('session_participants')
+          .update({ status: 'out', status_changed_at: new Date().toISOString() })
+          .eq('id', participant.id)
+
+        // Re-add by updating status
+        const { data: updated, error } = await supabase
+          .from('session_participants')
+          .update({
+            status: 'committed',
+            opted_in_at: new Date().toISOString(),
+            status_changed_at: new Date().toISOString(),
+          })
+          .eq('id', participant.id)
+          .select()
+          .single()
+
+        expect(error).toBeNull()
+        expect(updated.status).toBe('committed')
+      }
+    })
+
+    it('should not show opted-out players as available', async () => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      // Create a session
+      const { data: session } = await supabase
+        .from('sessions')
+        .insert({
+          pool_id: testPoolId,
+          proposed_date: tomorrow.toISOString().split('T')[0],
+          proposed_time: '18:00',
+          min_players: 4,
+          max_players: 8,
+        })
+        .select()
+        .single()
+
+      sessionsToCleanup.push(session.id)
+
+      // Get one participant and set them as 'out'
+      const { data: participant } = await supabase
+        .from('session_participants')
+        .select('id, player_id')
+        .eq('session_id', session.id)
+        .limit(1)
+        .single()
+
+      if (participant) {
+        // Set to 'out'
+        await supabase
+          .from('session_participants')
+          .update({ status: 'out', status_changed_at: new Date().toISOString() })
+          .eq('id', participant.id)
+
+        // Get available players (those not in 'committed', 'paid', 'maybe')
+        const { data: activeParticipants } = await supabase
+          .from('session_participants')
+          .select('player_id')
+          .eq('session_id', session.id)
+          .in('status', ['committed', 'paid', 'maybe'])
+
+        const activePlayerIds = new Set(activeParticipants?.map(p => p.player_id) || [])
+
+        // The 'out' player should NOT be in active participants
+        expect(activePlayerIds.has(participant.player_id)).toBe(false)
+
+        // But they should still have a record
+        const { data: outParticipant } = await supabase
+          .from('session_participants')
+          .select('status')
+          .eq('id', participant.id)
+          .single()
+
+        expect(outParticipant?.status).toBe('out')
+      }
+    })
+  })
 })

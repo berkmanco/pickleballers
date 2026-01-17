@@ -75,8 +75,14 @@
 - Unlock roster (resets to proposed, deletes payments)
 - Cancel session (soft delete, preserves data)
 
-### 11. Testing
-- **130 automated tests** via Vitest
+### 11. Add Player to Session
+- Admin can add existing pool members to a session
+- Dropdown shows available players (not already active in session)
+- Re-adds players who previously opted out
+- Updates cost calculations automatically
+
+### 12. Testing
+- **134 automated tests** via Vitest
 - Coverage: pools, sessions, registration, payments, notifications, venmo-parser
 - Run with `npm test`
 
@@ -85,7 +91,6 @@
 ## Future Features 📋
 
 ### High Priority
-- Add existing player to session
 
 ### Medium Priority
 - Players page with detailed view
