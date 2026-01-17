@@ -386,7 +386,7 @@ async function tryMatchByHashtag(
           .from("payments")
           .update({
             status: "paid",
-            paid_at: new Date().toISOString(),
+            payment_date: new Date().toISOString(),
             notes: `Auto-matched from Venmo email (${parsed.hashtag})`,
           })
           .eq("id", paymentId);
