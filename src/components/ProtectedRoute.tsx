@@ -1,5 +1,5 @@
-import { ReactNode } from 'react'
-import { Navigate } from 'react-router-dom'
+import { ReactNode, useEffect } from 'react'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 interface ProtectedRouteProps {
@@ -8,6 +8,15 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth()
+  const location = useLocation()
+
+  useEffect(() => {
+    // Save the intended destination when user is not authenticated
+    if (!loading && !user) {
+      const intendedPath = location.pathname + location.search
+      localStorage.setItem('redirectAfterLogin', intendedPath)
+    }
+  }, [user, loading, location])
 
   if (loading) {
     return (

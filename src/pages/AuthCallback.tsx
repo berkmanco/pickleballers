@@ -33,8 +33,14 @@ export default function AuthCallback() {
         setTimeout(() => {
           supabase.auth.getSession().then(({ data: { session: authSession } }: { data: { session: Session | null } }) => {
             if (authSession) {
-              // Successfully authenticated, redirect to dashboard
-              navigate('/dashboard', { replace: true })
+              // Successfully authenticated, check for redirect
+              const redirectPath = localStorage.getItem('redirectAfterLogin')
+              if (redirectPath && redirectPath !== '/') {
+                localStorage.removeItem('redirectAfterLogin')
+                navigate(redirectPath, { replace: true })
+              } else {
+                navigate('/dashboard', { replace: true })
+              }
             } else {
               // No session, redirect to login
               navigate('/login', { replace: true })
@@ -45,7 +51,14 @@ export default function AuthCallback() {
         // No token, check if we already have a session
         supabase.auth.getSession().then(({ data: { session: existingSession } }: { data: { session: Session | null } }) => {
           if (existingSession) {
-            navigate('/dashboard', { replace: true })
+            // Check for redirect
+            const redirectPath = localStorage.getItem('redirectAfterLogin')
+            if (redirectPath && redirectPath !== '/') {
+              localStorage.removeItem('redirectAfterLogin')
+              navigate(redirectPath, { replace: true })
+            } else {
+              navigate('/dashboard', { replace: true })
+            }
           } else {
             navigate('/login', { replace: true })
           }
