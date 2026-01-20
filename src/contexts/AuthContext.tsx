@@ -63,12 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) {
       throw new Error('Supabase not initialized. Check your environment variables.')
     }
-    // For local dev, use localhost:5173 to match Supabase config
-    // In production, this will use the actual origin
+    // Always redirect to /auth/callback, which will handle the redirect logic
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     const redirectUrl = isLocal 
-      ? `http://localhost:5173/dashboard`
-      : `${window.location.origin}/dashboard`
+      ? `http://localhost:5173/auth/callback`
+      : `${window.location.origin}/auth/callback`
     
     const { error } = await supabase.auth.signInWithOtp({
       email,
