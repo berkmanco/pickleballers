@@ -34,8 +34,15 @@ export default function AuthCallback() {
           supabase.auth.getSession().then(({ data: { session: authSession } }: { data: { session: Session | null } }) => {
             if (authSession) {
               // Successfully authenticated, check for redirect
-              const redirectPath = localStorage.getItem('redirectAfterLogin')
-              console.log('🔍 AuthCallback: redirectPath =', redirectPath)
+              // Priority: URL param > localStorage
+              const redirectParam = searchParams.get('redirect')
+              const localStorageRedirect = localStorage.getItem('redirectAfterLogin')
+              const redirectPath = redirectParam || localStorageRedirect
+              
+              console.log('🔍 AuthCallback: redirect from URL =', redirectParam)
+              console.log('🔍 AuthCallback: redirect from localStorage =', localStorageRedirect)
+              console.log('✅ Final redirectPath =', redirectPath)
+              
               if (redirectPath && redirectPath !== '/') {
                 console.log('✅ Redirecting to:', redirectPath)
                 localStorage.removeItem('redirectAfterLogin')
@@ -55,8 +62,14 @@ export default function AuthCallback() {
         supabase.auth.getSession().then(({ data: { session: existingSession } }: { data: { session: Session | null } }) => {
           if (existingSession) {
             // Check for redirect
-            const redirectPath = localStorage.getItem('redirectAfterLogin')
-            console.log('🔍 AuthCallback (existing session): redirectPath =', redirectPath)
+            // Priority: URL param > localStorage
+            const redirectParam = searchParams.get('redirect')
+            const localStorageRedirect = localStorage.getItem('redirectAfterLogin')
+            const redirectPath = redirectParam || localStorageRedirect
+            
+            console.log('🔍 AuthCallback (existing): redirect from URL =', redirectParam)
+            console.log('🔍 AuthCallback (existing): redirect from localStorage =', localStorageRedirect)
+            
             if (redirectPath && redirectPath !== '/') {
               console.log('✅ Redirecting to:', redirectPath)
               localStorage.removeItem('redirectAfterLogin')

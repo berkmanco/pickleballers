@@ -63,11 +63,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) {
       throw new Error('Supabase not initialized. Check your environment variables.')
     }
+    // Get the intended redirect path from localStorage
+    const intendedPath = localStorage.getItem('redirectAfterLogin')
+    
     // Always redirect to /auth/callback, which will handle the redirect logic
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    const redirectUrl = isLocal 
+    const baseUrl = isLocal 
       ? `http://localhost:5173/auth/callback`
       : `${window.location.origin}/auth/callback`
+    
+    // Append the redirect path as a query parameter so it survives email link clicks
+    const redirectUrl = intendedPath && intendedPath !== '/' 
+      ? `${baseUrl}?redirect=${encodeURIComponent(intendedPath)}`
+      : baseUrl
     
     const { error } = await supabase.auth.signInWithOtp({
       email,
