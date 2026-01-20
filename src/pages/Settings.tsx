@@ -91,7 +91,7 @@ export default function Settings() {
           setPlayer(data)
           setName(data.name || '')
           setPhone(formatPhoneDisplay(data.phone))
-          setVenmoAccount(data.venmo_account || '')
+          setVenmoAccount((data.venmo_account || '').replace('@', ''))
           setEmailNotifications(data.notification_preferences?.email ?? true)
           setSmsNotifications(data.notification_preferences?.sms ?? false)
         }
