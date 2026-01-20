@@ -35,10 +35,13 @@ export default function AuthCallback() {
             if (authSession) {
               // Successfully authenticated, check for redirect
               const redirectPath = localStorage.getItem('redirectAfterLogin')
+              console.log('🔍 AuthCallback: redirectPath =', redirectPath)
               if (redirectPath && redirectPath !== '/') {
+                console.log('✅ Redirecting to:', redirectPath)
                 localStorage.removeItem('redirectAfterLogin')
                 navigate(redirectPath, { replace: true })
               } else {
+                console.log('📍 No redirect, going to dashboard')
                 navigate('/dashboard', { replace: true })
               }
             } else {
@@ -53,10 +56,13 @@ export default function AuthCallback() {
           if (existingSession) {
             // Check for redirect
             const redirectPath = localStorage.getItem('redirectAfterLogin')
+            console.log('🔍 AuthCallback (existing session): redirectPath =', redirectPath)
             if (redirectPath && redirectPath !== '/') {
+              console.log('✅ Redirecting to:', redirectPath)
               localStorage.removeItem('redirectAfterLogin')
               navigate(redirectPath, { replace: true })
             } else {
+              console.log('📍 No redirect, going to dashboard')
               navigate('/dashboard', { replace: true })
             }
           } else {
