@@ -298,12 +298,12 @@ export default function Settings() {
               />
               <div>
                 <span className={`font-medium ${phone ? 'text-gray-900' : 'text-gray-400'}`}>
-                  SMS Notifications
+                  I agree to receive SMS text messages from DinkUp
                 </span>
                 <p className="text-sm text-gray-500">
                   {phone 
-                    ? 'Receive text messages for time-sensitive updates (24h reminders, waitlist promotions)'
-                    : 'Add a phone number to enable SMS notifications'
+                    ? 'Receive text message notifications for time-sensitive updates including 24-hour game reminders and waitlist promotion alerts. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time.'
+                    : 'Add a phone number above to enable SMS text message notifications'
                   }
                 </p>
               </div>
