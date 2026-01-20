@@ -147,16 +147,13 @@ function findAvailableSlots(
 }
 
 serve(async (req: Request) => {
-  // Handle CORS
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, x-client-info, apikey",
-      },
-    });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -165,7 +162,7 @@ serve(async (req: Request) => {
     if (!date) {
       return new Response(
         JSON.stringify({ error: "date parameter required (YYYY-MM-DD)" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     
@@ -174,13 +171,13 @@ serve(async (req: Request) => {
     if (startTime && !timeRegex.test(startTime)) {
       return new Response(
         JSON.stringify({ error: "startTime must be in HH:MM format (e.g., '09:00')" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     if (endTime && !timeRegex.test(endTime)) {
       return new Response(
         JSON.stringify({ error: "endTime must be in HH:MM format (e.g., '11:00')" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -311,8 +308,8 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify(response, null, 2), {
       status: 200,
       headers: {
+        ...corsHeaders,
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
       },
     });
 
@@ -320,7 +317,7 @@ serve(async (req: Request) => {
     console.error("Error:", error);
     return new Response(
       JSON.stringify({ error: (error as Error).message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
