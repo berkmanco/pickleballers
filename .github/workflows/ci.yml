@@ -5,9 +5,16 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch: # Manual trigger
 
 jobs:
   test:
+    # Only run if PR has 'run-ci' label OR it's a push to main
+    if: |
+      github.event_name == 'push' || 
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci')
     name: Build & Test
     runs-on: ubuntu-latest
     
