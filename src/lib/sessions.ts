@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { sendNotification } from './notifications'
 
 export interface Session {
   id: string
@@ -276,7 +277,7 @@ export async function unlockRoster(sessionId: string, deletePayments: boolean = 
       .eq('session_id', sessionId)
 
     if (participants && participants.length > 0) {
-      const participantIds = participants.map(p => p.id)
+      const participantIds = participants.map((p: { id: string }) => p.id)
       await supabase
         .from('payments')
         .delete()
@@ -317,6 +318,7 @@ export async function deleteSession(sessionId: string): Promise<void> {
 
 /**
  * Cancel a session (sets status to cancelled, preserves data)
+ * Notifies all participants about the cancellation
  */
 export async function cancelSession(sessionId: string): Promise<Session> {
   if (!supabase) {
@@ -333,6 +335,10 @@ export async function cancelSession(sessionId: string): Promise<Session> {
     .single()
 
   if (error) throw error
+  
+  // Notify all participants about the cancellation (fire and forget)
+  sendNotification('session_cancelled', { sessionId }).catch(console.error)
+  
   return data as Session
 }
 

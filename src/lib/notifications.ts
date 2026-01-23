@@ -8,7 +8,8 @@ export type NotificationType =
   | 'roster_locked'
   | 'payment_reminder'
   | 'session_reminder'
-  | 'waitlist_promoted';
+  | 'waitlist_promoted'
+  | 'session_cancelled';
 
 interface NotifyResult {
   success: boolean;
