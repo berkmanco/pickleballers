@@ -254,7 +254,7 @@ export default function Register() {
 
           <div className="pt-2">
             <label className="block text-sm font-medium text-gray-700 mb-3">
-              Notification Preferences
+              Email Notifications
             </label>
             <div className="space-y-2">
               <label className="flex items-center">
@@ -266,38 +266,27 @@ export default function Register() {
                       ...formData,
                       notification_preferences: {
                         email: e.target.checked,
-                        sms: formData.notification_preferences?.sms || false,
+                        sms: false, // SMS is always off during registration
                       },
                     })
                   }
                   className="mr-2 h-4 w-4 text-[#3CBBB1] focus:ring-[#3CBBB1] border-gray-300 rounded"
                 />
-                <span className="text-sm text-gray-700">Email notifications</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.notification_preferences?.sms || false}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      notification_preferences: {
-                        email: formData.notification_preferences?.email || false,
-                        sms: e.target.checked,
-                      },
-                    })
-                  }
-                  className="mr-2 h-4 w-4 text-[#3CBBB1] focus:ring-[#3CBBB1] border-gray-300 rounded"
-                />
-                <span className="text-sm text-gray-700">SMS notifications</span>
+                <span className="text-sm text-gray-700">
+                  Receive email notifications for sessions and payments
+                </span>
               </label>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              By enabling notifications, you agree to our{' '}
+              You can enable SMS notifications later in your{' '}
+              <a href="/settings" className="text-[#3CBBB1] hover:underline">
+                account settings
+              </a>
+              . View our{' '}
               <a href="/terms" target="_blank" className="text-[#3CBBB1] hover:underline">
                 Terms & Privacy Policy
               </a>
-              . You can opt out anytime.
+              .
             </p>
           </div>
 

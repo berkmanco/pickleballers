@@ -32,21 +32,26 @@ export default function Terms() {
             <div>
               <h3 className="font-medium text-gray-900">Opt-In</h3>
               <p className="text-sm leading-relaxed">
-                By providing your phone number during registration and enabling SMS notifications in your 
-                settings, you consent to receive text messages from DinkUp. You can enable or disable 
-                SMS notifications at any time in your account settings.
+                By enabling SMS notifications in your account settings, you consent to receive text 
+                messages from DinkUp. SMS notifications are optional and disabled by default. You can 
+                enable or disable SMS notifications at any time in your account settings.
               </p>
             </div>
 
             <div>
               <h3 className="font-medium text-gray-900">Message Types</h3>
-              <ul className="text-sm list-disc list-inside space-y-1">
-                <li>Session creation notifications</li>
-                <li>Roster lock confirmations</li>
-                <li>Payment reminders</li>
-                <li>Session reminders (day before)</li>
-                <li>Waitlist promotions</li>
+              <p className="text-sm leading-relaxed">
+                SMS notifications are used only for time-sensitive updates:
+              </p>
+              <ul className="text-sm list-disc list-inside space-y-1 mt-1">
+                <li>24-hour game reminders</li>
+                <li>Waitlist promotion alerts</li>
+                <li>Session cancellation notices</li>
               </ul>
+              <p className="text-sm leading-relaxed mt-2">
+                All other notifications (session creation, roster lock, payment reminders, etc.) 
+                are sent via email, which is enabled by default.
+              </p>
             </div>
 
             <div>
