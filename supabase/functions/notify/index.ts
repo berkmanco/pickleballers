@@ -42,7 +42,8 @@ type NotificationType =
   | "session_reminder"     // 24h before session
   | "waitlist_promoted"    // Player promoted from waitlist
   | "commitment_reminder"  // Remind uncommitted players to opt in
-  | "admin_low_commitment"; // Alert admin when not enough players committed
+  | "admin_low_commitment" // Alert admin when not enough players committed
+  | "session_cancelled";   // Session has been cancelled
 
 interface NotifyRequest {
   type: NotificationType;
@@ -176,6 +177,11 @@ serve(async (req: Request) => {
       case "admin_low_commitment":
         if (!sessionId) throw new Error("sessionId required for admin_low_commitment");
         results = await notifyAdminLowCommitment(supabase, sessionId);
+        break;
+
+      case "session_cancelled":
+        if (!sessionId) throw new Error("sessionId required for session_cancelled");
+        results = await notifySessionCancelled(supabase, sessionId);
         break;
 
       default:
@@ -1077,6 +1083,83 @@ async function notifyAdminLowCommitment(supabase: ReturnType<typeof createClient
     } catch (err) {
       results.failed++;
       results.errors.push(`${owner.email}: ${(err as Error).message}`);
+    }
+  }
+
+  return results;
+}
+
+async function notifySessionCancelled(supabase: ReturnType<typeof createClient>, sessionId: string) {
+  // Get session details with pool
+  const { data: session, error: sessionError } = await supabase
+    .from("sessions")
+    .select("id, proposed_date, proposed_time, court_location, pool:pools(id, name)")
+    .eq("id", sessionId)
+    .single();
+
+  if (sessionError || !session) throw new Error("Session not found");
+
+  // Get all session participants (both committed and waitlisted)
+  const { data: participants, error: participantsError } = await supabase
+    .from("session_participants")
+    .select("player:players(id, name, email, phone, notification_preferences)")
+    .eq("session_id", sessionId);
+
+  if (participantsError) throw participantsError;
+
+  const results = { sent: 0, failed: 0, errors: [] as string[] };
+  const sessionDate = formatDate(session.proposed_date);
+  const sessionTime = formatTime(session.proposed_time);
+  const location = session.court_location || "Location TBD";
+
+  for (const participant of participants || []) {
+    const player = participant.player as Player;
+    if (!player) continue;
+
+    // Send email notification
+    if (player.email && player.notification_preferences?.email) {
+      const html = emailTemplate({
+        title: "Session Cancelled ❌",
+        preheader: `${session.pool.name} - ${sessionDate} has been cancelled`,
+        body: `
+          <p>Hey ${getFirstName(player.name)}!</p>
+          <p>We're sorry to inform you that the following pickleball session has been cancelled:</p>
+          <div style="background: #fef2f2; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #ef4444;">
+            <p style="margin: 0; color: #7f1d1d;"><strong>📅 Date:</strong> ${sessionDate}</p>
+            <p style="margin: 8px 0 0 0; color: #7f1d1d;"><strong>⏰ Time:</strong> ${sessionTime}</p>
+            <p style="margin: 8px 0 0 0; color: #7f1d1d;"><strong>📍 Location:</strong> ${location}</p>
+            <p style="margin: 8px 0 0 0; color: #7f1d1d;"><strong>🏓 Pool:</strong> ${session.pool.name}</p>
+          </div>
+          <p>We hope to see you at the next session!</p>
+        `,
+        ctaText: "View Pool",
+        ctaUrl: `${APP_URL}/p/${session.pool.id}`,
+      });
+
+      try {
+        await sendEmail(player.email, `Session Cancelled: ${session.pool.name} - ${sessionDate}`, html);
+        results.sent++;
+        await logNotification(supabase, "session_cancelled", sessionId, player.id, "email", true);
+      } catch (err) {
+        results.failed++;
+        results.errors.push(`${player.email}: ${(err as Error).message}`);
+        await logNotification(supabase, "session_cancelled", sessionId, player.id, "email", false, (err as Error).message);
+      }
+    }
+
+    // Send SMS notification
+    if (!SMS_DISABLED && player.phone && player.notification_preferences?.sms) {
+      const smsMessage = `🏓 Session Cancelled: ${session.pool.name} on ${sessionDate} at ${sessionTime} has been cancelled. We hope to see you at the next session! View pool: ${APP_URL}/p/${session.pool.id}`;
+
+      try {
+        await sendSMS(player.phone, smsMessage);
+        results.sent++;
+        await logNotification(supabase, "session_cancelled", sessionId, player.id, "sms", true);
+      } catch (err) {
+        results.failed++;
+        results.errors.push(`${player.phone}: ${(err as Error).message}`);
+        await logNotification(supabase, "session_cancelled", sessionId, player.id, "sms", false, (err as Error).message);
+      }
     }
   }
 

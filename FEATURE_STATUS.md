@@ -58,6 +58,7 @@
   - Payment reminder → email to guests with pending payments
   - Session reminder → email + optional SMS (today/tomorrow logic)
   - Waitlist promoted → email + SMS
+  - **Session cancelled → email + SMS to all participants**
 - **Manual "Send Reminder" button** for admins to trigger session reminders
 - Notification preferences in Settings page
 - Notification log for auditing
@@ -79,7 +80,7 @@
 - **Edit session** (owner can edit all details before roster is locked)
 - Delete session (cascade deletes participants/payments)
 - Unlock roster (resets to proposed, deletes payments)
-- Cancel session (soft delete, preserves data)
+- **Cancel session** (sets status to cancelled, notifies all participants via email/SMS)
 
 ### 11. Add Player to Session
 - Admin can add existing pool members to a session
@@ -94,7 +95,7 @@
 - Auto-formats phone to E.164, strips @ from Venmo
 
 ### 13. Testing
-- **162 automated tests** via Vitest
+- **163 automated tests** via Vitest
 - Coverage: pools, sessions, registration, payments, notifications, venmo-parser, courtreserve
 - Run with `npm test`
 

@@ -228,4 +228,39 @@ describe.skipIf(SKIP_DB_TESTS)('Notification Edge Functions', () => {
       console.log('Last log:', logs?.[0])
     })
   })
+
+  describe('session_cancelled', () => {
+    it('should send cancellation notifications to all participants', async () => {
+      const session = await createTestSession(supabase, testPoolId, { status: 'proposed' })
+      testSessionId = session.id
+      console.log('Created test session:', testSessionId)
+
+      // Add a participant
+      await createTestParticipant(supabase, testSessionId, 'committed')
+
+      // Cancel the session
+      await supabase
+        .from('sessions')
+        .update({ status: 'cancelled' })
+        .eq('id', testSessionId)
+
+      const result = await callEdgeFunction('notify', {
+        type: 'session_cancelled',
+        sessionId: testSessionId,
+      })
+      console.log('session_cancelled result:', result.data)
+
+      expect(result.status).toBe(200)
+      expect((result.data as any).success).toBe(true)
+      expect((result.data as any).sent).toBeGreaterThanOrEqual(1)
+
+      // Verify logs
+      const { data: logs } = await supabase
+        .from('notifications_log')
+        .select('*')
+        .eq('session_id', testSessionId)
+        .eq('type', 'session_cancelled')
+      expect(logs?.length).toBeGreaterThanOrEqual(1)
+    }, 15000) // Increased timeout for rate-limited emails
+  })
 })
