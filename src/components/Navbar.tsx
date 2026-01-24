@@ -55,6 +55,7 @@ export default function Navbar() {
           {/* Logo - goes to dashboard when logged in, home when not */}
           <Link to={user ? "/dashboard" : "/"} className="flex items-center gap-2">
             <img src="/logo.png" alt="DinkUp" className="h-10 w-auto" />
+            <span className="text-white text-xl font-bold">DinkUp</span>
           </Link>
           
           <div className="flex items-center gap-2 sm:gap-4">
