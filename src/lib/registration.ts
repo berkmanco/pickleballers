@@ -45,53 +45,116 @@ export async function createRegistrationLink(poolId: string) {
   return data as RegistrationLink
 }
 
-// Validate a registration token
-export async function validateRegistrationToken(token: string) {
+// Validate a registration token OR pool slug
+export async function validateRegistrationToken(tokenOrSlug: string) {
   if (!supabase) {
     throw new Error('Database connection not available')
   }
 
-  const { data, error } = await supabase
-    .from('registration_links')
-    .select(`
-      *,
-      pools (
-        id,
-        name,
-        slug
-      )
-    `)
-    .eq('token', token)
-    .single()
+  // Check if it's a UUID (token) or a slug
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tokenOrSlug)
 
-  if (error) {
-    console.error('Supabase error validating token:', error)
-    throw error
+  if (isUUID) {
+    // Token-based registration (legacy)
+    const { data, error } = await supabase
+      .from('registration_links')
+      .select(`
+        *,
+        pools (
+          id,
+          name,
+          slug
+        )
+      `)
+      .eq('token', tokenOrSlug)
+      .single()
+
+    if (error) {
+      console.error('Supabase error validating token:', error)
+      throw error
+    }
+
+    if (!data) {
+      throw new Error('Registration link not found')
+    }
+
+    const link = data as RegistrationLinkWithPool
+
+    // Check if already used
+    if (link.used_at) {
+      throw new Error('This registration link has already been used')
+    }
+
+    // Check if expired
+    if (new Date(link.expires_at) < new Date()) {
+      throw new Error('This registration link has expired')
+    }
+
+    return link
+  } else {
+    // Slug-based registration (new multi-use flow)
+    const { data: pool, error } = await supabase
+      .from('pools')
+      .select('id, name, slug, registration_enabled')
+      .eq('slug', tokenOrSlug)
+      .single()
+
+    if (error || !pool) {
+      throw new Error('Pool not found')
+    }
+
+    if (!pool.registration_enabled) {
+      throw new Error('Registration is currently closed for this pool')
+    }
+
+    // Return a pseudo-link object for compatibility
+    return {
+      id: '', // Not needed for slug-based
+      pool_id: pool.id,
+      token: tokenOrSlug,
+      created_by: null,
+      expires_at: '', // Never expires
+      used_at: null,
+      used_by: null,
+      created_at: '',
+      pools: {
+        id: pool.id,
+        name: pool.name,
+        slug: pool.slug,
+      }
+    } as RegistrationLinkWithPool
   }
-
-  if (!data) {
-    throw new Error('Registration link not found')
-  }
-
-  const link = data as RegistrationLinkWithPool
-
-  // Check if already used
-  if (link.used_at) {
-    throw new Error('This registration link has already been used')
-  }
-
-  // Check if expired
-  if (new Date(link.expires_at) < new Date()) {
-    throw new Error('This registration link has expired')
-  }
-
-  return link
 }
 
-// Register a player using a token
-export async function registerPlayer(token: string, registrationData: RegistrationData) {
-  // First validate the token
-  const link = await validateRegistrationToken(token)
+// Register a player using a token or slug
+export async function registerPlayer(tokenOrSlug: string, registrationData: RegistrationData) {
+  // First validate the token/slug
+  const link = await validateRegistrationToken(tokenOrSlug)
+
+  // Check if UUID (token-based) or slug-based
+  const isTokenBased = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tokenOrSlug)
+
+  // Check if email already in this pool
+  const { data: existingPlayer } = await supabase
+    .from('players')
+    .select('id')
+    .eq('email', registrationData.email)
+    .single()
+
+  if (existingPlayer) {
+    // Check if already in this pool
+    const { data: existingPoolPlayer } = await supabase
+      .from('pool_players')
+      .select('id')
+      .eq('pool_id', link.pool_id)
+      .eq('player_id', existingPlayer.id)
+      .eq('is_active', true)
+      .single()
+
+    if (existingPoolPlayer) {
+      throw new Error('This email is already registered in this pool. Please log in instead.')
+    }
+  }
 
   // Create player record using security definer function to bypass RLS
   const { data: playerId, error: functionError } = await supabase.rpc(
@@ -144,16 +207,19 @@ export async function registerPlayer(token: string, registrationData: Registrati
 
   if (poolPlayerError) throw poolPlayerError
 
-  // Mark registration link as used
-  const { error: linkError } = await supabase
-    .from('registration_links')
-    .update({
-      used_at: new Date().toISOString(),
-      used_by: player.id,
-    })
-    .eq('id', link.id)
+  // Only mark link as used if it's a token-based link
+  if (isTokenBased && link.id) {
+    const { error: linkError } = await supabase
+      .from('registration_links')
+      .update({
+        used_at: new Date().toISOString(),
+        used_by: player.id,
+      })
+      .eq('id', link.id)
 
-  if (linkError) throw linkError
+    if (linkError) console.error('Error marking link as used:', linkError)
+  }
+  // Slug-based links are multi-use, so we don't mark them as used
 
   return {
     player,

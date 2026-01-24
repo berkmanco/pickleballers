@@ -27,6 +27,7 @@ function App() {
             <Route path="login" element={<Login />} />
             <Route path="auth/callback" element={<AuthCallback />} />
             <Route path="register/:token" element={<Register />} />
+            <Route path="r/:slug" element={<Register />} />
             <Route
               path="dashboard"
               element={

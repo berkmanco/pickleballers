@@ -125,32 +125,33 @@
 
 ## Future Features 📋
 
-### High Priority
-- Court unavailable alert (CourtReserve check for admin)
+### Quick Wins (High Impact, Low Effort)
+- **Show committed players in reminder emails** - "Who's playing: Mike, Erik, +3 more" → social proof, increases attendance
+- **Multi-use registration links** - One link, multiple signups → easier sharing in group chats
+- **Google Maps link for court location in emails** - Tap to navigate → reduces confusion
+- **Player can explicitly opt-out of a session** - Stop getting reminders for sessions they're not playing
+
+### High Impact (Worth the Effort)
+- **Session time voting** - Admin proposes 2-3 time slots, players vote, system picks winner → solves coordination problem
+- **Players page with detailed view** - See all players, payment history, attendance stats → better admin tools
+- **Auto-login after registration** - Skip magic link step → smoother onboarding UX
+- **"Adjust & Re-bill"** - Send supplemental payment requests when costs change → handles real-world court changes
 
 ### Medium Priority
-- Players page with detailed view
-- Auto-login after registration
-- Custom Supabase auth email templates
-- Multi-use registration links
-- Player can explicitly opt-out of a session (stop getting reminders)
-- Detailed notification preferences
+- Court unavailable alert (CourtReserve check for admin) → being handled elsewhere
+- Admin shortfall indicator - Show when admin is covering extra costs
+- Detailed notification preferences (per-type toggles)
+- Custom Supabase auth email templates (branding)
+- Allow player to leave a pool
 
-### Backlog
-- **Session time voting** - Admin proposes 2-3 time slots, players vote, system picks winner
+### Backlog (Nice to Have)
 - Admin can set costs or make free (outdoor sessions)
 - Open registration (anyone can join without link)
-- Granular notification settings
 - Dynamic OG meta tags for session links
-- Google Maps link for court location in emails
-- Allow player to leave a pool
-- Delete account functionality
+- Delete account functionality (GDPR compliance)
 - Opt out of all notifications (master toggle)
 - Enhanced account management (settings page improvements)
 - Timezone support for session times
-- Show committed players in reminder emails ("Who's playing: Mike, Erik, +3 more")
-- "Adjust & Re-bill" - Send supplemental payment requests when costs change
-- Admin shortfall indicator - Show when admin is covering extra costs
 - Claim account / link existing player to auth user
 
 ---

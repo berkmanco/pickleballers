@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Register() {
-  const { token } = useParams<{ token: string }>()
+  const { token, slug } = useParams<{ token?: string; slug?: string }>()
   const { signIn } = useAuth()
   const [link, setLink] = useState<RegistrationLinkWithPool | null>(null)
   const [loading, setLoading] = useState(true)
@@ -18,10 +18,10 @@ export default function Register() {
   const [success, setSuccess] = useState(false)
   const [magicLinkSent, setMagicLinkSent] = useState(false)
 
-  // Debug: log token on mount
+  // Debug: log parameters on mount
   useEffect(() => {
-    console.log('Register page mounted, token:', token)
-  }, [token])
+    console.log('Register page mounted, token:', token, 'slug:', slug)
+  }, [token, slug])
 
   const [formData, setFormData] = useState<RegistrationData>({
     name: '',
@@ -35,38 +35,46 @@ export default function Register() {
   })
 
   useEffect(() => {
-    if (!token) {
+    if (!token && !slug) {
       setError('Invalid registration link')
       setLoading(false)
       return
     }
 
-    const currentToken = token // Capture for TypeScript
-    async function validateToken() {
+    async function validateLink() {
       try {
         setLoading(true)
         setError(null)
-        const linkData = await validateRegistrationToken(currentToken!)
-        setLink(linkData)
+        
+        if (token) {
+          // Old token-based flow
+          const linkData = await validateRegistrationToken(token)
+          setLink(linkData)
+        } else if (slug) {
+          // New slug-based flow - validate pool slug
+          const linkData = await validateRegistrationToken(slug)
+          setLink(linkData)
+        }
       } catch (err: any) {
-        console.error('Registration token validation error:', err)
+        console.error('Registration validation error:', err)
         setError(err.message || 'Invalid or expired registration link')
       } finally {
         setLoading(false)
       }
     }
 
-    validateToken()
-  }, [token])
+    validateLink()
+  }, [token, slug])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!token) return
+    if (!token && !slug) return
 
     try {
       setSubmitting(true)
       setError(null)
-      await registerPlayer(token, formData)
+      // Use token if available, otherwise use slug
+      await registerPlayer(token || slug!, formData)
       setSuccess(true)
       
       // Auto-send magic link to log them in
