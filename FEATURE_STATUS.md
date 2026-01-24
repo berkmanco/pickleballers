@@ -94,9 +94,17 @@
 - Bypasses registration flow (no magic link needed)
 - Auto-formats phone to E.164, strips @ from Venmo
 
-### 13. Testing
-- **163 automated tests** via Vitest
-- Coverage: pools, sessions, registration, payments, notifications, venmo-parser, courtreserve
+### 13. Multi-Use Registration Links
+- **Short, memorable URLs** based on pool slug: `dinkup.link/r/weekend-warriors`
+- **Unlimited use** - share in group chats, no expiration
+- **Admin toggle** - open/close registration with checkbox
+- **Backward compatible** - legacy token links still work
+- **Duplicate prevention** - checks for existing email in pool
+- See `docs/MULTI_USE_REGISTRATION.md` for details
+
+### 14. Testing
+- **168 automated tests** via Vitest
+- Coverage: pools, sessions, registration (including multi-use), payments, notifications, venmo-parser, courtreserve
 - Run with `npm test`
 
 ### 14. CourtReserve Integration

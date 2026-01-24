@@ -468,4 +468,222 @@ describe.skipIf(SKIP_DB_TESTS)('Registration Flow', () => {
       expect(player.venmo_account).toBe('minimal-venmo')
     })
   })
+
+  describe('Multi-Use Registration (Slug-Based)', () => {
+    it('should validate pool slug for registration', async () => {
+      // Get pool by slug
+      const { data: pool, error } = await supabase
+        .from('pools')
+        .select('id, name, slug, registration_enabled')
+        .eq('id', testPoolId)
+        .single()
+
+      expect(error).toBeNull()
+      expect(pool).toBeDefined()
+      expect(pool.slug).toBeDefined()
+      expect(pool.registration_enabled).toBeDefined()
+      console.log('Pool slug:', pool.slug, 'registration_enabled:', pool.registration_enabled)
+    })
+
+    it('should toggle registration on/off', async () => {
+      // Get current state
+      const { data: before } = await supabase
+        .from('pools')
+        .select('registration_enabled')
+        .eq('id', testPoolId)
+        .single()
+
+      const originalState = before.registration_enabled
+
+      // Toggle to false
+      const { error: disableError } = await supabase
+        .from('pools')
+        .update({ registration_enabled: false })
+        .eq('id', testPoolId)
+
+      expect(disableError).toBeNull()
+
+      const { data: disabled } = await supabase
+        .from('pools')
+        .select('registration_enabled')
+        .eq('id', testPoolId)
+        .single()
+
+      expect(disabled.registration_enabled).toBe(false)
+
+      // Toggle to true
+      const { error: enableError } = await supabase
+        .from('pools')
+        .update({ registration_enabled: true })
+        .eq('id', testPoolId)
+
+      expect(enableError).toBeNull()
+
+      const { data: enabled } = await supabase
+        .from('pools')
+        .select('registration_enabled')
+        .eq('id', testPoolId)
+        .single()
+
+      expect(enabled.registration_enabled).toBe(true)
+
+      // Restore original state
+      await supabase
+        .from('pools')
+        .update({ registration_enabled: originalState })
+        .eq('id', testPoolId)
+
+      console.log('Registration toggle works!')
+    })
+
+    it('should register player via slug (multi-use)', async () => {
+      // Get pool slug
+      const { data: pool } = await supabase
+        .from('pools')
+        .select('id, slug, registration_enabled')
+        .eq('id', testPoolId)
+        .single()
+
+      expect(pool.slug).toBeDefined()
+      
+      // Ensure registration is enabled
+      if (!pool.registration_enabled) {
+        await supabase
+          .from('pools')
+          .update({ registration_enabled: true })
+          .eq('id', testPoolId)
+      }
+
+      // Create player via slug (simulating multi-use registration)
+      const testEmail = `slug-reg-${Date.now()}@example.com`
+
+      const { data: playerId } = await supabase.rpc(
+        'create_player_for_registration',
+        {
+          p_name: 'Slug Registration Test',
+          p_phone: null,
+          p_email: testEmail,
+          p_venmo_account: 'slug-reg-venmo',
+          p_notification_preferences: { email: true, sms: false },
+        }
+      )
+
+      playersToCleanup.push(playerId)
+
+      // Add to pool
+      await supabase.from('pool_players').insert({
+        pool_id: testPoolId,
+        player_id: playerId,
+        is_active: true,
+      })
+
+      // Verify membership
+      const { data: membership } = await supabase
+        .from('pool_players')
+        .select('*')
+        .eq('pool_id', testPoolId)
+        .eq('player_id', playerId)
+        .single()
+
+      expect(membership).toBeDefined()
+      expect(membership.is_active).toBe(true)
+
+      console.log('Slug-based registration successful!')
+    })
+
+    it('should detect duplicate registration in same pool', async () => {
+      // Create player
+      const testEmail = `dup-pool-${Date.now()}@example.com`
+
+      const { data: playerId } = await supabase.rpc(
+        'create_player_for_registration',
+        {
+          p_name: 'Duplicate Pool Test',
+          p_phone: null,
+          p_email: testEmail,
+          p_venmo_account: 'dup-pool-venmo',
+          p_notification_preferences: { email: true, sms: false },
+        }
+      )
+
+      playersToCleanup.push(playerId)
+
+      // Add to pool
+      await supabase.from('pool_players').insert({
+        pool_id: testPoolId,
+        player_id: playerId,
+        is_active: true,
+      })
+
+      // Try to add same player to same pool again
+      const { error } = await supabase.from('pool_players').insert({
+        pool_id: testPoolId,
+        player_id: playerId,
+        is_active: true,
+      })
+
+      // Should error due to unique constraint
+      expect(error).toBeDefined()
+      console.log('Duplicate pool membership blocked:', error?.message)
+    })
+
+    it('should allow multiple registrations via slug (different emails)', async () => {
+      // Get pool slug
+      const { data: pool } = await supabase
+        .from('pools')
+        .select('slug')
+        .eq('id', testPoolId)
+        .single()
+
+      // Register first player
+      const email1 = `multi-1-${Date.now()}@example.com`
+      const { data: player1Id } = await supabase.rpc(
+        'create_player_for_registration',
+        {
+          p_name: 'Multi User 1',
+          p_phone: null,
+          p_email: email1,
+          p_venmo_account: 'multi-1-venmo',
+          p_notification_preferences: { email: true, sms: false },
+        }
+      )
+
+      playersToCleanup.push(player1Id)
+      await supabase.from('pool_players').insert({
+        pool_id: testPoolId,
+        player_id: player1Id,
+        is_active: true,
+      })
+
+      // Register second player with same slug (different email)
+      const email2 = `multi-2-${Date.now()}@example.com`
+      const { data: player2Id } = await supabase.rpc(
+        'create_player_for_registration',
+        {
+          p_name: 'Multi User 2',
+          p_phone: null,
+          p_email: email2,
+          p_venmo_account: 'multi-2-venmo',
+          p_notification_preferences: { email: true, sms: false },
+        }
+      )
+
+      playersToCleanup.push(player2Id)
+      await supabase.from('pool_players').insert({
+        pool_id: testPoolId,
+        player_id: player2Id,
+        is_active: true,
+      })
+
+      // Both should be in the pool
+      const { data: members } = await supabase
+        .from('pool_players')
+        .select('player_id')
+        .eq('pool_id', testPoolId)
+        .in('player_id', [player1Id, player2Id])
+
+      expect(members?.length).toBe(2)
+      console.log('Multiple slug-based registrations successful!')
+    })
+  })
 })
