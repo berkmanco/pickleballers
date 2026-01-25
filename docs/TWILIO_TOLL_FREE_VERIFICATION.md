@@ -46,35 +46,45 @@ https://www.dinkup.link/screenshots/sms-consent.png
 ```
 
 **IMPORTANT**: Screenshot must show:
-- SMS checkbox UNCHECKED by default
-- Full consent text visible
+- SMS checkboxes UNCHECKED by default (all 3 types)
+- Full notification preferences table with 5 types visible
+- 3 SMS-enabled types: session reminders, payment requests, payment reminders
+- 2 email-only types: waitlist promotions, session cancellations
 - Phone number field visible
 - Clear, readable image quality
+- DinkUp branding visible in navbar
 
 ### Use Case Description (500 character limit)
 
-**Recommended Language (EXACTLY matches Settings page)**:
+**Current Submission (Compliant with separate opt-ins)**:
 ```
-DinkUp is a pickleball coordination app. Users receive OPTIONAL SMS for time-sensitive session notifications: 24-hour game reminders and payment requests.
+DinkUp is a pickleball app. Users receive OPTIONAL SMS via separate opt-ins.
 
-Opt-in: Users go to Settings, enter phone, check: "I agree to receive SMS text messages from DinkUp" with disclosure: "Receive text message notifications for time-sensitive session updates including 24-hour game reminders and payment requests. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time." Checkbox unchecked by default. Email is the default notification method; SMS is optional and requires explicit consent.
+Settings page shows 3 checkboxes:
+• "24-hour session reminders" 
+• "Payment requests"
+• "Payment reminders"
+
+Each has disclosure: "Receive SMS text messages for [type]. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe." 
+
+All unchecked by default. Phone required for SMS. Email is default notification method. Each checkbox is independent opt-in.
 ```
 
-**Character count**: 500 (exactly at limit)
+**Character count**: 449
 
 **Key Points**:
-- ✅ SINGLE use case only (transactional session notifications)
-- ✅ Emphasize "OPTIONAL" - SMS not required
-- ✅ Quote exact checkbox label and disclosure text
-- ✅ Mention unchecked by default
-- ✅ State email as default alternative
-- ✅ No promotional/marketing language
+- ✅ SEPARATE opt-in for each SMS type (fixes Error 30504)
+- ✅ Emphasize "OPTIONAL" and "independent"
+- ✅ Lists all 3 SMS-enabled types
+- ✅ Includes disclosure text
+- ✅ Mentions unchecked by default
+- ✅ States email as default alternative
 
 ### Sample Message
 
 **Session Reminder**:
 ```
-🏓 DinkUp Reminder: Weekend Warriors session tomorrow at 10:00 AM. See you on the court!
+🏓 DinkUp: Weekend Warriors tomorrow at 10:00 AM. See you on the court!
 ```
 
 **Payment Request**:
@@ -82,19 +92,21 @@ Opt-in: Users go to Settings, enter phone, check: "I agree to receive SMS text m
 DinkUp: Payment request for Weekend Warriors session on 1/25. You owe $8.50. Pay via Venmo: @dinkup
 ```
 
+**Payment Reminder**:
+```
+DinkUp: Reminder - $8.50 still due for Weekend Warriors session. Please pay via Venmo: @dinkup
+```
+
 ### Additional Information (Optional)
 
-**Recommended Language**:
+**Current Submission**:
 ```
-SMS is strictly opt-in only. Users cannot receive SMS without explicitly checking the consent checkbox in their Settings page. The consent language clearly identifies DinkUp as the sender and describes message types (session reminders and payment requests). Users can disable SMS at any time by unchecking the box or replying STOP. Email is used for all other notifications.
+SMS is opt-in only. Users must enable SMS in Settings by checking individual boxes for each notification type. Phone number required. Email is the default notification channel. SMS is reserved for time-sensitive transactional alerts: 24-hour game reminders, payment requests, and payment reminders. Each SMS type has separate consent checkbox.
 ```
 
 ### Opt-In Confirmation Message (Optional)
 
-**Recommended**:
-```
-You've enabled SMS notifications for DinkUp. You'll receive time-sensitive session alerts like 24-hour game reminders and payment requests. Reply STOP to unsubscribe anytime.
-```
+**Leave blank** - Users see their preferences immediately in the Settings UI, so an automated confirmation message is not needed. The Settings page serves as the confirmation.
 
 ### Help Message (Optional)
 
