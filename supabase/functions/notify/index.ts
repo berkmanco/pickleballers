@@ -56,6 +56,7 @@ interface NotifyRequest {
 
 interface Player {
   id: string;
+  user_id?: string | null;
   name: string;
   email: string;
   phone: string | null;
@@ -218,7 +219,7 @@ async function notifySessionCreated(supabase: ReturnType<typeof createClient>, s
   // Get all pool members (excluding the admin who created it)
   const { data: poolPlayers, error: playersError } = await supabase
     .from("pool_players")
-    .select("player:players(id, name, email, phone, notification_preferences)")
+    .select("player:players(id, user_id, name, email, phone, notification_preferences)")
     .eq("pool_id", session.pool.id)
     .eq("is_active", true);
 
@@ -240,7 +241,9 @@ async function notifySessionCreated(supabase: ReturnType<typeof createClient>, s
 
   for (const pp of poolPlayers || []) {
     const player = pp.player as Player;
-    if (!player.email || !player.notification_preferences?.email) continue;
+    
+    // Check if user wants email notifications for this type
+    if (!player.email || !(await shouldNotifyUser(supabase, player.user_id, 'session_created', 'email'))) continue;
 
     const html = emailTemplate({
       title: "New Session Proposed! 🏓",
@@ -303,7 +306,7 @@ async function notifyRosterLocked(supabase: ReturnType<typeof createClient>, ses
       id, amount,
       session_participant:session_participants!inner(
         session_id,
-        player:players(id, name, email, phone, notification_preferences)
+        player:players(id, user_id, name, email, phone, notification_preferences)
       )
     `)
     .eq("session_participant.session_id", sessionId)
@@ -317,7 +320,9 @@ async function notifyRosterLocked(supabase: ReturnType<typeof createClient>, ses
 
   for (const payment of payments || []) {
     const player = (payment.session_participant as { player: Player })?.player;
-    if (!player?.email || !player.notification_preferences?.email) continue;
+    
+    // Check if user wants email notifications for payment requests
+    if (!player?.email || !(await shouldNotifyUser(supabase, player.user_id, 'roster_locked', 'email'))) continue;
 
     // Generate a PAY link (guest pays admin) with hashtag for auto-reconciliation
     const venmoPayLink = adminVenmo 
@@ -383,7 +388,7 @@ async function notifyPaymentReminder(supabase: ReturnType<typeof createClient>, 
       id, amount,
       session_participant:session_participants!inner(
         session_id,
-        player:players(id, name, email, phone, notification_preferences)
+        player:players(id, user_id, name, email, phone, notification_preferences)
       )
     `)
     .eq("session_participant.session_id", sessionId)
@@ -396,7 +401,9 @@ async function notifyPaymentReminder(supabase: ReturnType<typeof createClient>, 
 
   for (const payment of payments || []) {
     const player = (payment.session_participant as { player: Player })?.player;
-    if (!player?.email || !player.notification_preferences?.email) continue;
+    
+    // Check if user wants email notifications for payment reminders
+    if (!player?.email || !(await shouldNotifyUser(supabase, player.user_id, 'payment_reminder', 'email'))) continue;
 
     // Generate a PAY link (guest pays admin) with hashtag for auto-reconciliation
     const venmoPayLink = adminVenmo 
@@ -453,7 +460,7 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
     .from("session_participants")
     .select(`
       id,
-      player:players(id, name, email, phone, notification_preferences)
+      player:players(id, user_id, name, email, phone, notification_preferences)
     `)
     .eq("session_id", sessionId)
     .in("status", ["committed", "paid"]);
@@ -520,7 +527,7 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
     }
     
     // Send email if enabled
-    if (player.email && player.notification_preferences?.email) {
+    if (player.email && await shouldNotifyUser(supabase, player.user_id, 'session_reminder', 'email')) {
       // Build payment reminder section if they still owe
       const paymentSection = hasPendingPayment ? `
         <div style="background: #fef3c7; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #f59e0b;">
@@ -575,7 +582,7 @@ async function notifySessionReminder(supabase: ReturnType<typeof createClient>, 
     }
 
     // Send SMS if enabled and phone exists
-    if (player.phone && player.notification_preferences?.sms) {
+    if (player.phone && await shouldNotifyUser(supabase, player.user_id, 'session_reminder', 'sms')) {
       const paymentNote = hasPendingPayment ? ` Don't forget to pay $${pendingPayment.amount.toFixed(2)}!` : "";
       const smsMessage = `🏓 DinkUp: ${session.pool.name} ${timeWord} at ${sessionTime}.${paymentNote} See you on the court!`;
       
@@ -604,7 +611,7 @@ async function notifyWaitlistPromoted(supabase: ReturnType<typeof createClient>,
 
   const { data: player, error: playerError } = await supabase
     .from("players")
-    .select("id, name, email, phone, notification_preferences")
+    .select("id, user_id, name, email, phone, notification_preferences")
     .eq("id", playerId)
     .single();
 
@@ -615,7 +622,7 @@ async function notifyWaitlistPromoted(supabase: ReturnType<typeof createClient>,
   const sessionTime = formatTime(session.proposed_time);
 
   // Send email
-  if (player.email && player.notification_preferences?.email) {
+  if (player.email && await shouldNotifyUser(supabase, player.user_id, 'waitlist_promoted', 'email')) {
     const html = emailTemplate({
       title: "You're In! 🎉",
       preheader: `Promoted from waitlist for ${session.pool.name}`,
@@ -643,7 +650,7 @@ async function notifyWaitlistPromoted(supabase: ReturnType<typeof createClient>,
   }
 
   // Send SMS for time-sensitive notification
-  if (player.phone && player.notification_preferences?.sms) {
+  if (player.phone && await shouldNotifyUser(supabase, player.user_id, 'waitlist_promoted', 'sms')) {
     const smsMessage = `🎉 DinkUp: You're in! Promoted from waitlist for ${session.pool.name} on ${sessionDate} at ${sessionTime}. View: ${APP_URL}/s/${sessionId}`;
     
     try {
@@ -777,6 +784,45 @@ async function logNotification(
     success,
     error_message: errorMessage,
   });
+}
+
+// Map Edge Function notification types to granular preference types
+const NOTIFICATION_PREF_MAP: Record<NotificationType, string> = {
+  'session_created': 'session_cancelled', // Use generic session type for new sessions
+  'roster_locked': 'payment_request',
+  'payment_reminder': 'payment_reminder',
+  'session_reminder': 'session_reminder_24h',
+  'waitlist_promoted': 'waitlist_promotion',
+  'session_cancelled': 'session_cancelled',
+  'commitment_reminder': 'session_cancelled', // Generic session notification
+  'admin_low_commitment': 'session_cancelled', // Admin-only, but use same type
+};
+
+// Check if user should receive notification based on granular preferences
+async function shouldNotifyUser(
+  supabase: ReturnType<typeof createClient>,
+  userId: string | null | undefined,
+  notificationType: NotificationType,
+  channel: 'email' | 'sms'
+): Promise<boolean> {
+  // If no userId, fall back to old behavior (allow)
+  if (!userId) return true;
+
+  const preferenceType = NOTIFICATION_PREF_MAP[notificationType];
+  
+  const { data } = await supabase
+    .from('notification_preferences')
+    .select('email_enabled, sms_enabled')
+    .eq('user_id', userId)
+    .eq('notification_type', preferenceType)
+    .maybeSingle();
+
+  if (!data) {
+    // Default: email ON, SMS OFF
+    return channel === 'email' ? true : false;
+  }
+
+  return channel === 'email' ? data.email_enabled : data.sms_enabled;
 }
 
 function formatDate(dateString: string): string {
@@ -941,7 +987,7 @@ async function notifyCommitmentReminder(supabase: ReturnType<typeof createClient
   // Get pool members who haven't committed yet
   const { data: uncommittedPlayers, error: playersError } = await supabase
     .from("pool_players")
-    .select("player:players(id, name, email, phone, notification_preferences)")
+    .select("player:players(id, user_id, name, email, phone, notification_preferences)")
     .eq("pool_id", session.pool.id)
     .eq("is_active", true);
 
@@ -975,7 +1021,8 @@ async function notifyCommitmentReminder(supabase: ReturnType<typeof createClient
     // Skip if already responded
     if (respondedIds.has(player.id)) continue;
     
-    if (!player.email || !player.notification_preferences?.email) continue;
+    // Check if user wants email notifications (using generic session type)
+    if (!player.email || !(await shouldNotifyUser(supabase, player.user_id, 'commitment_reminder', 'email'))) continue;
 
     const html = emailTemplate({
       title: "Are You In? 🏓",
@@ -1042,7 +1089,7 @@ async function notifyAdminLowCommitment(supabase: ReturnType<typeof createClient
   // Get the pool owner (admin)
   const { data: owner, error: ownerError } = await supabase
     .from("players")
-    .select("id, name, email, notification_preferences")
+    .select("id, user_id, name, email, notification_preferences")
     .eq("user_id", session.pool.owner_id)
     .single();
 
@@ -1053,6 +1100,7 @@ async function notifyAdminLowCommitment(supabase: ReturnType<typeof createClient
   const sessionTime = formatTime(session.proposed_time);
   const needed = minPlayers - committed;
 
+  // Admin notifications always sent (not user-configurable)
   if (owner.email) {
     const html = emailTemplate({
       title: "⚠️ Low Commitment Alert",
@@ -1102,7 +1150,7 @@ async function notifySessionCancelled(supabase: ReturnType<typeof createClient>,
   // Get all session participants (both committed and waitlisted)
   const { data: participants, error: participantsError } = await supabase
     .from("session_participants")
-    .select("player:players(id, name, email, phone, notification_preferences)")
+    .select("player:players(id, user_id, name, email, phone, notification_preferences)")
     .eq("session_id", sessionId);
 
   if (participantsError) throw participantsError;
@@ -1117,7 +1165,7 @@ async function notifySessionCancelled(supabase: ReturnType<typeof createClient>,
     if (!player) continue;
 
     // Send email notification
-    if (player.email && player.notification_preferences?.email) {
+    if (player.email && await shouldNotifyUser(supabase, player.user_id, 'session_cancelled', 'email')) {
       const html = emailTemplate({
         title: "Session Cancelled ❌",
         preheader: `${session.pool.name} - ${sessionDate} has been cancelled`,
@@ -1148,7 +1196,7 @@ async function notifySessionCancelled(supabase: ReturnType<typeof createClient>,
     }
 
     // Send SMS notification
-    if (!SMS_DISABLED && player.phone && player.notification_preferences?.sms) {
+    if (!SMS_DISABLED && player.phone && await shouldNotifyUser(supabase, player.user_id, 'session_cancelled', 'sms')) {
       const smsMessage = `🏓 Session Cancelled: ${session.pool.name} on ${sessionDate} at ${sessionTime} has been cancelled. We hope to see you at the next session! View pool: ${APP_URL}/p/${session.pool.id}`;
 
       try {
