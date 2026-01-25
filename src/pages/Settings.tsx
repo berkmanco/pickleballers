@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import { 
+  getUserPreferences, 
+  updatePreference, 
+  NotificationType, 
+  NOTIFICATION_TYPES 
+} from '../lib/notificationPreferences'
 
 // Format E.164 phone number for display: +16145376574 -> (614) 537-6574
 function formatPhoneDisplay(phone: string | null): string {
@@ -68,8 +74,9 @@ export default function Settings() {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [venmoAccount, setVenmoAccount] = useState('')
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [smsNotifications, setSmsNotifications] = useState(false)
+  
+  // Notification preferences state
+  const [notificationPrefs, setNotificationPrefs] = useState<Map<NotificationType, { email: boolean; sms: boolean }>>(new Map())
 
   useEffect(() => {
     if (!user) return
@@ -92,8 +99,17 @@ export default function Settings() {
           setName(data.name || '')
           setPhone(formatPhoneDisplay(data.phone))
           setVenmoAccount((data.venmo_account || '').replace('@', ''))
-          setEmailNotifications(data.notification_preferences?.email ?? true)
-          setSmsNotifications(data.notification_preferences?.sms ?? false)
+          
+          // Load notification preferences
+          const prefs = await getUserPreferences(userId)
+          const prefsState = new Map<NotificationType, { email: boolean; sms: boolean }>()
+          prefs.forEach((pref, type) => {
+            prefsState.set(type, {
+              email: pref.email_enabled,
+              sms: pref.sms_enabled
+            })
+          })
+          setNotificationPrefs(prefsState)
         }
       } catch (err: any) {
         setError(err.message || 'Failed to load profile')
@@ -107,7 +123,7 @@ export default function Settings() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!player) return
+    if (!player || !user) return
 
     // Validate phone if provided
     if (phone && !isValidPhone(phone)) {
@@ -120,20 +136,23 @@ export default function Settings() {
       setError(null)
       setSuccess(null)
 
+      // Update player profile
       const { error: updateError } = await supabase
         .from('players')
         .update({
           name,
           phone: formatPhoneE164(phone),
           venmo_account: venmoAccount,
-          notification_preferences: {
-            email: emailNotifications,
-            sms: smsNotifications,
-          },
         })
         .eq('id', player.id)
 
       if (updateError) throw updateError
+
+      // Update notification preferences
+      const prefUpdates = Array.from(notificationPrefs.entries()).map(([type, prefs]) =>
+        updatePreference(user.id, type, prefs.email, prefs.sms)
+      )
+      await Promise.all(prefUpdates)
 
       setSuccess('Settings saved successfully!')
     } catch (err: any) {
@@ -267,47 +286,92 @@ export default function Settings() {
 
         {/* Notification Preferences */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Notifications</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Choose how you want to receive updates about sessions and payments.
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Notification Preferences</h2>
+          <p className="text-sm text-gray-600 mb-6">
+            Choose how you want to be notified for each type of update.
           </p>
 
-          <div className="space-y-4">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={emailNotifications}
-                onChange={(e) => setEmailNotifications(e.target.checked)}
-                className="mt-1 h-4 w-4 text-[#3CBBB1] border-gray-300 rounded focus:ring-[#3CBBB1]"
-              />
-              <div>
-                <span className="font-medium text-gray-900">Email Notifications</span>
-                <p className="text-sm text-gray-500">
-                  Receive emails for new sessions, payment requests, and reminders
-                </p>
-              </div>
-            </label>
+          {!phone && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                💡 Add a phone number above to enable SMS notifications
+              </p>
+            </div>
+          )}
 
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={smsNotifications}
-                onChange={(e) => setSmsNotifications(e.target.checked)}
-                disabled={!phone}
-                className="mt-1 h-4 w-4 text-[#3CBBB1] border-gray-300 rounded focus:ring-[#3CBBB1] disabled:opacity-50"
-              />
-              <div>
-                <span className={`font-medium ${phone ? 'text-gray-900' : 'text-gray-400'}`}>
-                  I agree to receive SMS text messages from DinkUp
-                </span>
-                <p className="text-sm text-gray-500">
-                  {phone 
-                    ? 'Receive text message notifications for time-sensitive session updates including 24-hour game reminders and payment requests. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time.'
-                    : 'Add a phone number above to enable SMS text message notifications'
-                  }
-                </p>
-              </div>
-            </label>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-2 font-semibold text-gray-700">Notification Type</th>
+                  <th className="text-center py-3 px-2 font-semibold text-gray-700 w-20">Email</th>
+                  <th className="text-center py-3 px-2 font-semibold text-gray-700 w-20">SMS</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {Object.entries(NOTIFICATION_TYPES).map(([type, metadata]) => {
+                  const prefs = notificationPrefs.get(type as NotificationType) || { email: true, sms: false }
+                  const typedType = type as NotificationType
+
+                  return (
+                    <tr key={type} className="hover:bg-gray-50">
+                      <td className="py-4 px-2">
+                        <div>
+                          <div className="font-medium text-gray-900">{metadata.label}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">{metadata.description}</div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-2 text-center">
+                        {metadata.supportsEmail ? (
+                          <input
+                            type="checkbox"
+                            checked={prefs.email}
+                            onChange={(e) => {
+                              const newPrefs = new Map(notificationPrefs)
+                              newPrefs.set(typedType, { ...prefs, email: e.target.checked })
+                              setNotificationPrefs(newPrefs)
+                            }}
+                            className="h-4 w-4 text-[#3CBBB1] border-gray-300 rounded focus:ring-[#3CBBB1]"
+                          />
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-2 text-center">
+                        {metadata.supportsSMS ? (
+                          <div className="flex items-center justify-center">
+                            <input
+                              type="checkbox"
+                              checked={prefs.sms}
+                              onChange={(e) => {
+                                const newPrefs = new Map(notificationPrefs)
+                                newPrefs.set(typedType, { ...prefs, sms: e.target.checked })
+                                setNotificationPrefs(newPrefs)
+                              }}
+                              disabled={!phone}
+                              title={metadata.smsDisclosure || undefined}
+                              className="h-4 w-4 text-[#3CBBB1] border-gray-300 rounded focus:ring-[#3CBBB1] disabled:opacity-30 disabled:cursor-not-allowed"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 space-y-2 text-xs text-gray-500">
+            <p>
+              <strong>SMS Consent:</strong> Each SMS checkbox represents a separate opt-in. You can enable any combination you prefer.
+            </p>
+            <p>
+              • Reply STOP to any SMS to unsubscribe from all SMS notifications<br />
+              • Message frequency varies. Message and data rates may apply.
+            </p>
           </div>
         </div>
 

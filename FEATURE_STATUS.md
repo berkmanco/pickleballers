@@ -138,7 +138,7 @@
 - **Multi-use registration links** - One link, multiple signups → easier sharing in group chats
 - **Google Maps link for court location in emails** - Tap to navigate → reduces confusion
 - **Player can explicitly opt-out of a session** - Stop getting reminders for sessions they're not playing
-- **Payment calculation transparency** - Show breakdown: "Court: $60 ÷ 8 players = $7.50 each" → eliminates confusion about cost splitting
+- **Payment calculation transparency** - Show breakdown: "Court: $60 ÷ 8 players = $7.50 each" → eliminates confusion about cost splitting.
 
 ### High Impact (Worth the Effort)
 - **Session time voting** - Admin proposes 2-3 time slots, players vote, system picks winner → solves coordination problem
@@ -171,6 +171,13 @@
 - Safari magic link may not complete login (cross-origin redirect)
 - Gmail app → Chrome handoff can lose token
 - SMS requires Twilio toll-free verification
+- Auth callback still not working (all in Chrome on Mac)
+    - I'm logged out
+    - I click a link from my email (Gmail) that directly links me to a session page
+    - I'm redirected to the login page
+    - I login
+    - I get an auth email from supabase and click the link
+    - *I'm directed to the dashboard* - this is wrong, I should be directed to the session page
 
 ---
 
