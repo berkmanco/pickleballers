@@ -280,10 +280,15 @@ export default function PoolDetails() {
                     type="checkbox"
                     checked={pool.registration_enabled ?? true}
                     onChange={async (e) => {
+                      const newValue = e.target.checked
                       try {
-                        await togglePoolRegistration(pool.id, e.target.checked)
-                        setPool({ ...pool, registration_enabled: e.target.checked })
+                        // Optimistically update UI first
+                        setPool(prev => ({ ...prev, registration_enabled: newValue }))
+                        // Then save to database
+                        await togglePoolRegistration(pool.id, newValue)
                       } catch (err: any) {
+                        // Revert on error
+                        setPool(prev => ({ ...prev, registration_enabled: !newValue }))
                         setError(err.message || 'Failed to toggle registration')
                       }
                     }}
