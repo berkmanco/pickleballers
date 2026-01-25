@@ -150,7 +150,7 @@ Comprehensive notification preference system with per-type email/SMS toggles:
 
 ### Quick Wins (High Impact, Low Effort)
 - **Show committed players in reminder emails** - "Who's playing: Mike, Erik, +3 more" → social proof, increases attendance
-- **Multi-use registration links** - One link, multiple signups → easier sharing in group chats
+- **Welcome email for new pool members** - When someone joins a pool, send them an email listing upcoming sessions they can RSVP to → prevents new members from missing sessions that were proposed before they joined
 - **Google Maps link for court location in emails** - Tap to navigate → reduces confusion
 - **Player can explicitly opt-out of a session** - Stop getting reminders for sessions they're not playing
 - **Payment calculation transparency** - Show breakdown: "Court: $60 ÷ 8 players = $7.50 each" → eliminates confusion about cost splitting.
