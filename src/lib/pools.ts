@@ -7,6 +7,7 @@ export interface Pool {
   description: string | null
   owner_id: string | null
   is_active: boolean
+  registration_enabled: boolean
   created_at: string
   updated_at: string
 }
@@ -410,5 +411,22 @@ export async function getPoolOwnerPlayer(poolId: string): Promise<Player | null>
   }
 
   return player as Player | null
+}
+
+// Toggle pool registration on/off
+export async function togglePoolRegistration(poolId: string, enabled: boolean): Promise<void> {
+  if (!supabase) {
+    throw new Error('Database connection not available')
+  }
+
+  const { error } = await supabase
+    .from('pools')
+    .update({ registration_enabled: enabled })
+    .eq('id', poolId)
+
+  if (error) {
+    console.error('Error toggling pool registration:', error)
+    throw error
+  }
 }
 
