@@ -102,9 +102,9 @@
 - **Duplicate prevention** - checks for existing email in pool
 - See `docs/MULTI_USE_REGISTRATION.md` for details
 
-### 14. Testing
-- **178 automated tests** via Vitest
-- Coverage: pools, sessions, registration (including multi-use), payments, notifications, notification preferences, venmo-parser, courtreserve
+### 15. Testing
+- **208 automated tests** via Vitest
+- Coverage: pools, sessions, registration (including multi-use), payments, notifications, notification preferences (client + Edge Function + database), venmo-parser, courtreserve
 - Run with `npm test`
 
 ### 14. CourtReserve Integration
