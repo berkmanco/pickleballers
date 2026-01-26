@@ -145,18 +145,18 @@ Comprehensive notification preference system with per-type email/SMS toggles:
 - **Tests**: 10 new tests covering all preference operations
 
 ### 15. Session Comments ✅
-**Status**: Complete  
+**Status**: Complete (notifications disabled for now)  
 **Added**: January 26, 2026
 
 Discussion thread system for session coordination:
 - **Comment on sessions**: Any pool member can add comments to sessions they're part of
 - **Real-time updates**: Comments reload after posting/deleting
-- **Email notifications**: Participants get notified when someone comments (optional)
+- **Email notifications**: Infrastructure in place, currently disabled (can be enabled later)
 - **Clean UI**: Chronological list with relative timestamps ("2h ago", "1d ago")
 - **RLS policies**: Only pool members can read/write comments on their sessions
 - **Edit/Delete**: Users can delete their own comments
 - **Database**: New `session_comments` table with proper indexes and triggers
-- **Notification type**: `comment_added` with session and commenter details
+- **Notification type**: `comment_added` with session and commenter details (inactive)
 
 ### 16. Owner Notifications ✅
 **Status**: Complete  
@@ -176,13 +176,25 @@ Notify pool owner when players join:
 - **Mobile overflow fix**: Fixed "Joined" date being cut off on Pool Details player list (mobile responsive)
 - Responsive date display: "Joined" label hidden on mobile, shows only date
 
+### 18. Welcome Email ✅
+**Status**: Complete  
+**Added**: January 26, 2026
+
+Onboarding email for new pool members:
+- **Automatic**: Sent when someone registers via invite link
+- **Upcoming sessions**: Lists next 30 days of sessions with dates, times, locations
+- **Direct RSVP**: Link to pool page to opt-in to sessions
+- **Graceful fallback**: Shows friendly message if no sessions scheduled yet
+- **Settings tip**: Reminds users to enable notifications for session updates
+- **Branded**: DinkUp colors and emoji, professional and welcoming
+- **Fire-and-forget**: Doesn't block registration flow
+
 ---
 
 ## Future Features 📋
 
 ### Quick Wins (High Impact, Low Effort)
 - **Show committed players in reminder emails** - "Who's playing: Mike, Erik, +3 more" → social proof, increases attendance
-- **Welcome email for new pool members** - When someone joins a pool, send them an email listing upcoming sessions they can RSVP to → prevents new members from missing sessions that were proposed before they joined
 - **Google Maps link for court location in emails** - Tap to navigate → reduces confusion
 - **Player can explicitly opt-out of a session** - Stop getting reminders for sessions they're not playing
 - **Payment calculation transparency** - Show breakdown: "Court: $60 ÷ 8 players = $7.50 each" → eliminates confusion about cost splitting.
