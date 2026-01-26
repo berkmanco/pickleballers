@@ -11,7 +11,8 @@ export type NotificationType =
   | 'waitlist_promoted'
   | 'session_cancelled'
   | 'player_joined'
-  | 'comment_added';
+  | 'comment_added'
+  | 'player_welcome';
 
 interface NotifyResult {
   success: boolean;
@@ -111,6 +112,16 @@ export async function notifyCommentAdded(
   playerId: string
 ): Promise<NotifyResult> {
   return sendNotification('comment_added', { sessionId, playerId, customMessage: commentId });
+}
+
+/**
+ * Send welcome email to new player with upcoming sessions
+ */
+export async function notifyPlayerWelcome(
+  poolId: string,
+  playerId: string
+): Promise<NotifyResult> {
+  return sendNotification('player_welcome', { poolId, playerId });
 }
 
 /**

@@ -35,7 +35,7 @@ export async function getSessionComments(sessionId: string): Promise<Comment[]> 
 /**
  * Add a comment to a session
  */
-export async function addSessionComment(sessionId: string, comment: string, notify: boolean = true): Promise<Comment> {
+export async function addSessionComment(sessionId: string, comment: string, notify: boolean = false): Promise<Comment> {
   // First, get the current user's player ID
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')

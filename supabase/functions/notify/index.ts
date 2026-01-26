@@ -45,7 +45,8 @@ type NotificationType =
   | "admin_low_commitment" // Alert admin when not enough players committed
   | "session_cancelled"    // Session has been cancelled
   | "player_joined"        // New player joined a pool
-  | "comment_added";       // New comment added to session
+  | "comment_added"        // New comment added to session
+  | "player_welcome";      // Welcome email to new player
 
 interface NotifyRequest {
   type: NotificationType;
@@ -196,6 +197,11 @@ serve(async (req: Request) => {
       case "comment_added":
         if (!sessionId || !playerId || !customMessage) throw new Error("sessionId, playerId, and customMessage (commentId) required for comment_added");
         results = await notifyCommentAdded(supabase, sessionId, playerId, customMessage);
+        break;
+
+      case "player_welcome":
+        if (!poolId || !playerId) throw new Error("poolId and playerId required for player_welcome");
+        results = await notifyPlayerWelcome(supabase, poolId, playerId);
         break;
 
       default:
@@ -1384,6 +1390,101 @@ async function notifyCommentAdded(supabase: ReturnType<typeof createClient>, ses
         await logNotification(supabase, "comment_added", sessionId, player.id, "email", false, (err as Error).message);
       }
     }
+  }
+
+  return results;
+}
+
+async function notifyPlayerWelcome(supabase: ReturnType<typeof createClient>, poolId: string, playerId: string) {
+  // Get pool details
+  const { data: pool, error: poolError } = await supabase
+    .from("pools")
+    .select("id, name, slug")
+    .eq("id", poolId)
+    .single();
+
+  if (poolError || !pool) throw new Error("Pool not found");
+
+  // Get the new player's details
+  const { data: newPlayer, error: newPlayerError } = await supabase
+    .from("players")
+    .select("id, name, email")
+    .eq("id", playerId)
+    .single();
+
+  if (newPlayerError || !newPlayer || !newPlayer.email) {
+    console.log("Player not found or has no email");
+    return { sent: 0, failed: 0, errors: [] };
+  }
+
+  // Get upcoming sessions for this pool (next 30 days)
+  const today = new Date().toISOString().split('T')[0];
+  const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  
+  const { data: sessions, error: sessionsError } = await supabase
+    .from("sessions")
+    .select("id, proposed_date, proposed_time, court_location, court_numbers")
+    .eq("pool_id", poolId)
+    .gte("proposed_date", today)
+    .lte("proposed_date", thirtyDaysFromNow)
+    .in("status", ["proposed", "confirmed"])
+    .order("proposed_date", { ascending: true })
+    .limit(10);
+
+  if (sessionsError) {
+    console.error("Error fetching sessions:", sessionsError);
+  }
+
+  const results = { sent: 0, failed: 0, errors: [] as string[] };
+
+  // Build sessions list HTML
+  let sessionsHtml = '';
+  if (sessions && sessions.length > 0) {
+    sessionsHtml = '<h3 style="color: #3CBBB1; margin: 24px 0 12px 0;">Upcoming Sessions:</h3>';
+    sessionsHtml += '<div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 16px;">';
+    
+    sessions.forEach((session: any) => {
+      const sessionDate = formatDate(session.proposed_date);
+      const sessionTime = formatTime(session.proposed_time);
+      const location = session.court_location || "Location TBD";
+      
+      sessionsHtml += `
+        <div style="border-bottom: 1px solid #e5e7eb; padding: 12px 0; margin-bottom: 12px;">
+          <p style="margin: 0; color: #111827;"><strong>📅 ${sessionDate}</strong> at ${sessionTime}</p>
+          <p style="margin: 4px 0 0 0; color: #6b7280;">📍 ${location}</p>
+        </div>
+      `;
+    });
+    
+    sessionsHtml += '</div>';
+    sessionsHtml += '<p>Click below to RSVP for sessions and coordinate with your pool members!</p>';
+  } else {
+    sessionsHtml = '<p>No upcoming sessions scheduled yet. Check back soon or reach out to your pool admin!</p>';
+  }
+
+  const html = emailTemplate({
+    title: `Welcome to ${pool.name}! 🎉`,
+    preheader: `You're now a member of ${pool.name} pickleball pool`,
+    body: `
+      <p>Hey ${getFirstName(newPlayer.name)}!</p>
+      <p>Welcome to <strong>${pool.name}</strong>! We're excited to have you join us for some pickleball. 🏓</p>
+      ${sessionsHtml}
+      <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
+        <strong>Pro tip:</strong> Enable notifications in your settings to get reminders about upcoming sessions and important updates!
+      </p>
+    `,
+    ctaText: "View Pool & Sessions",
+    ctaUrl: `${APP_URL}/p/${pool.slug || pool.id}`,
+  });
+
+  try {
+    await sendEmail(newPlayer.email, `Welcome to ${pool.name}! 🏓`, html);
+    results.sent++;
+    await logNotification(supabase, "player_welcome", null, newPlayer.id, "email", true);
+  } catch (err) {
+    results.failed++;
+    results.errors.push(`${newPlayer.email}: ${(err as Error).message}`);
+    await logNotification(supabase, "player_welcome", null, newPlayer.id, "email", false, (err as Error).message);
   }
 
   return results;
