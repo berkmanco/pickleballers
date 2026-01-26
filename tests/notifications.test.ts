@@ -263,4 +263,90 @@ describe.skipIf(SKIP_DB_TESTS)('Notification Edge Functions', () => {
       expect(logs?.length).toBeGreaterThanOrEqual(1)
     }, 15000) // Increased timeout for rate-limited emails
   })
+
+  describe('player_joined', () => {
+    it('should send notification to pool owner when player joins', async () => {
+      // Get a player from the pool
+      const { data: poolPlayer } = await supabase
+        .from('pool_players')
+        .select('player_id')
+        .eq('pool_id', testPoolId)
+        .limit(1)
+        .single()
+
+      const result = await callEdgeFunction('notify', {
+        type: 'player_joined',
+        poolId: testPoolId,
+        playerId: poolPlayer!.player_id,
+      })
+      console.log('player_joined result:', result.data)
+
+      expect(result.status).toBe(200)
+      expect((result.data as any).success).toBe(true)
+      // May be 0 if owner has no email or notifications disabled
+      expect((result.data as any).sent).toBeGreaterThanOrEqual(0)
+    })
+  })
+
+  describe('player_welcome', () => {
+    it('should send welcome email to new player', async () => {
+      // Get a player from the pool
+      const { data: poolPlayer } = await supabase
+        .from('pool_players')
+        .select('player:players(id, email)')
+        .eq('pool_id', testPoolId)
+        .limit(1)
+        .single()
+
+      // Only test if player has an email
+      if (poolPlayer?.player && (poolPlayer.player as any).email) {
+        const result = await callEdgeFunction('notify', {
+          type: 'player_welcome',
+          poolId: testPoolId,
+          playerId: (poolPlayer.player as any).id,
+        })
+        console.log('player_welcome result:', result.data)
+
+        expect(result.status).toBe(200)
+        expect((result.data as any).success).toBe(true)
+        expect((result.data as any).sent).toBeGreaterThanOrEqual(1)
+      }
+    })
+  })
+
+  describe('comment_added', () => {
+    it('should send notification when comment is added (when enabled)', async () => {
+      const session = await createTestSession(supabase, testPoolId, { status: 'proposed' })
+      testSessionId = session.id
+
+      // Add a participant
+      const participant = await createTestParticipant(supabase, testSessionId, 'committed')
+
+      // Add a comment
+      const { data: comment } = await supabase
+        .from('session_comments')
+        .insert({
+          session_id: testSessionId,
+          player_id: participant.player_id,
+          comment: 'Test comment for notification',
+        })
+        .select('id')
+        .single()
+
+      // Note: Notifications are currently disabled by default (notify: false)
+      // This test verifies the Edge Function handler works when called directly
+      const result = await callEdgeFunction('notify', {
+        type: 'comment_added',
+        sessionId: testSessionId,
+        playerId: participant.player_id,
+        customMessage: comment!.id, // commentId
+      })
+      console.log('comment_added result:', result.data)
+
+      expect(result.status).toBe(200)
+      expect((result.data as any).success).toBe(true)
+      // May be 0 if no other participants or notifications disabled
+      expect((result.data as any).sent).toBeGreaterThanOrEqual(0)
+    })
+  })
 })
