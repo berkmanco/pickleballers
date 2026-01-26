@@ -25,6 +25,7 @@ import {
 } from '../lib/payments'
 import { notifyRosterLocked, notifyPaymentReminder, notifySessionReminder } from '../lib/notifications'
 import { generateGoogleCalendarUrl, downloadIcsFile, createSessionCalendarEvent } from '../lib/calendar'
+import { getSessionComments, addSessionComment, deleteSessionComment, Comment } from '../lib/comments'
 
 export default function SessionDetails() {
   const { id } = useParams<{ id: string }>()
@@ -63,6 +64,12 @@ export default function SessionDetails() {
   const [editingCourts, setEditingCourts] = useState(false)
   const [adjustedCourts, setAdjustedCourts] = useState<number>(1)
   const [updatingCourts, setUpdatingCourts] = useState(false)
+  
+  // Comments state
+  const [comments, setComments] = useState<Comment[]>([])
+  const [newComment, setNewComment] = useState('')
+  const [addingComment, setAddingComment] = useState(false)
+  const [loadingComments, setLoadingComments] = useState(false)
 
   useEffect(() => {
     if (!id || !user) return
@@ -115,6 +122,9 @@ export default function SessionDetails() {
           phase3Promises.push(loadPayments(sessionData.id))
         }
         
+        // Always load comments (pool members can comment anytime)
+        phase3Promises.push(loadComments(sessionData.id))
+        
         if (phase3Promises.length > 0) {
           await Promise.all(phase3Promises)
         }
@@ -138,6 +148,18 @@ export default function SessionDetails() {
       setPaymentSummary(summaryData)
     } catch (err) {
       console.error('Failed to load payments:', err)
+    }
+  }
+
+  async function loadComments(sessionId: string) {
+    try {
+      setLoadingComments(true)
+      const commentsData = await getSessionComments(sessionId)
+      setComments(commentsData)
+    } catch (err) {
+      console.error('Failed to load comments:', err)
+    } finally {
+      setLoadingComments(false)
     }
   }
 
@@ -481,6 +503,36 @@ export default function SessionDetails() {
       setError(err.message || 'Failed to mark request as sent')
     } finally {
       setUpdatingPayment(null)
+    }
+  }
+
+  async function handleAddComment(e: React.FormEvent) {
+    e.preventDefault()
+    if (!session || !newComment.trim() || addingComment) return
+
+    try {
+      setAddingComment(true)
+      await addSessionComment(session.id, newComment)
+      setNewComment('')
+      // Reload comments to show the new one
+      await loadComments(session.id)
+    } catch (err: any) {
+      setError(err.message || 'Failed to add comment')
+    } finally {
+      setAddingComment(false)
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    if (!session) return
+    if (!confirm('Delete this comment?')) return
+
+    try {
+      await deleteSessionComment(commentId)
+      // Reload comments
+      await loadComments(session.id)
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete comment')
     }
   }
 
@@ -1201,7 +1253,93 @@ export default function SessionDetails() {
           )}
         </div>
       )}
+
+      {/* Comments Section */}
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6 mt-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Comments
+        </h2>
+
+        {/* Comment Form */}
+        <form onSubmit={handleAddComment} className="mb-6">
+          <textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Add a comment for coordination..."
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent resize-none"
+          />
+          <div className="mt-2 flex justify-end">
+            <button
+              type="submit"
+              disabled={!newComment.trim() || addingComment}
+              className="bg-[#3CBBB1] text-white px-4 py-2 text-sm rounded-md hover:bg-[#35a8a0] focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {addingComment ? 'Posting...' : 'Post Comment'}
+            </button>
+          </div>
+        </form>
+
+        {/* Comments List */}
+        {loadingComments ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3CBBB1]"></div>
+          </div>
+        ) : comments.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-8">
+            No comments yet. Be the first to comment!
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {comments.map((comment) => {
+              const isMyComment = comment.player?.user_id === user?.id
+              const commentDate = new Date(comment.created_at)
+              const timeAgo = getTimeAgo(commentDate)
+
+              return (
+                <div key={comment.id} className="border-b border-gray-100 pb-4 last:border-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-gray-900">
+                          {comment.player?.name || 'Unknown'}
+                        </span>
+                        <span className="text-xs text-gray-400">{timeAgo}</span>
+                      </div>
+                      <p className="text-gray-700 whitespace-pre-wrap break-words">
+                        {comment.comment}
+                      </p>
+                    </div>
+                    {isMyComment && (
+                      <button
+                        onClick={() => handleDeleteComment(comment.id)}
+                        className="text-xs text-red-500 hover:text-red-700 hover:underline flex-shrink-0"
+                        title="Delete comment"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
+}
+
+// Helper function to format relative time
+function getTimeAgo(date: Date): string {
+  const now = new Date()
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+  
+  if (seconds < 60) return 'just now'
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`
+  
+  return date.toLocaleDateString()
 }
 
