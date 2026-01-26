@@ -44,7 +44,8 @@ type NotificationType =
   | "commitment_reminder"  // Remind uncommitted players to opt in
   | "admin_low_commitment" // Alert admin when not enough players committed
   | "session_cancelled"    // Session has been cancelled
-  | "player_joined";       // New player joined a pool
+  | "player_joined"        // New player joined a pool
+  | "comment_added";       // New comment added to session
 
 interface NotifyRequest {
   type: NotificationType;
@@ -190,6 +191,11 @@ serve(async (req: Request) => {
       case "player_joined":
         if (!poolId || !playerId) throw new Error("poolId and playerId required for player_joined");
         results = await notifyPlayerJoined(supabase, poolId, playerId);
+        break;
+
+      case "comment_added":
+        if (!sessionId || !playerId || !customMessage) throw new Error("sessionId, playerId, and customMessage (commentId) required for comment_added");
+        results = await notifyCommentAdded(supabase, sessionId, playerId, customMessage);
         break;
 
       default:
@@ -1296,6 +1302,87 @@ async function notifyPlayerJoined(supabase: ReturnType<typeof createClient>, poo
       results.failed++;
       results.errors.push(`${owner.phone}: ${(err as Error).message}`);
       await logNotification(supabase, "player_joined", null, owner.id, "sms", false, (err as Error).message);
+    }
+  }
+
+  return results;
+}
+
+async function notifyCommentAdded(supabase: ReturnType<typeof createClient>, sessionId: string, commenterId: string, commentId: string) {
+  // Get session details with pool
+  const { data: session, error: sessionError } = await supabase
+    .from("sessions")
+    .select("id, proposed_date, proposed_time, pool:pools(id, name)")
+    .eq("id", sessionId)
+    .single();
+
+  if (sessionError || !session) throw new Error("Session not found");
+
+  // Get the comment and commenter details
+  const { data: comment, error: commentError } = await supabase
+    .from("session_comments")
+    .select(`
+      id,
+      comment,
+      player:players(id, name)
+    `)
+    .eq("id", commentId)
+    .single();
+
+  if (commentError || !comment) throw new Error("Comment not found");
+
+  // Get all session participants EXCEPT the commenter
+  const { data: participants, error: participantsError } = await supabase
+    .from("session_participants")
+    .select("player:players(id, user_id, name, email)")
+    .eq("session_id", sessionId)
+    .neq("player_id", commenterId);
+
+  if (participantsError) throw participantsError;
+
+  const results = { sent: 0, failed: 0, errors: [] as string[] };
+  const sessionDate = formatDate(session.proposed_date);
+  const sessionTime = formatTime(session.proposed_time);
+  const commenterName = comment.player?.name || "Someone";
+
+  // Truncate comment for preview (first 100 chars)
+  const commentPreview = comment.comment.length > 100 
+    ? comment.comment.substring(0, 100) + "..." 
+    : comment.comment;
+
+  for (const participant of participants || []) {
+    const player = participant.player as Player;
+    if (!player || !player.email) continue;
+
+    // Send email notification
+    if (await shouldNotifyUser(supabase, player.user_id, 'session_cancelled', 'email')) {
+      const html = emailTemplate({
+        title: "New Comment on Session 💬",
+        preheader: `${commenterName} commented on ${session.pool.name} - ${sessionDate}`,
+        body: `
+          <p>Hey ${getFirstName(player.name)}!</p>
+          <p><strong>${commenterName}</strong> added a comment to your upcoming session:</p>
+          <div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #3CBBB1;">
+            <p style="margin: 0; color: #374151;"><strong>📅 Session:</strong> ${sessionDate} at ${sessionTime}</p>
+            <p style="margin: 8px 0 0 0; color: #374151;"><strong>🏓 Pool:</strong> ${session.pool.name}</p>
+          </div>
+          <div style="background: #ecfdf5; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #10b981;">
+            <p style="margin: 0; color: #065f46; font-style: italic;">"${commentPreview}"</p>
+          </div>
+        `,
+        ctaText: "View Session & Comment",
+        ctaUrl: `${APP_URL}/s/${sessionId}`,
+      });
+
+      try {
+        await sendEmail(player.email, `${commenterName} commented on ${session.pool.name}`, html);
+        results.sent++;
+        await logNotification(supabase, "comment_added", sessionId, player.id, "email", true);
+      } catch (err) {
+        results.failed++;
+        results.errors.push(`${player.email}: ${(err as Error).message}`);
+        await logNotification(supabase, "comment_added", sessionId, player.id, "email", false, (err as Error).message);
+      }
     }
   }
 

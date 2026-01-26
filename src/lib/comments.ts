@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { notifyCommentAdded } from './notifications'
 
 export interface Comment {
   id: string
@@ -34,7 +35,7 @@ export async function getSessionComments(sessionId: string): Promise<Comment[]> 
 /**
  * Add a comment to a session
  */
-export async function addSessionComment(sessionId: string, comment: string): Promise<Comment> {
+export async function addSessionComment(sessionId: string, comment: string, notify: boolean = true): Promise<Comment> {
   // First, get the current user's player ID
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
@@ -61,6 +62,14 @@ export async function addSessionComment(sessionId: string, comment: string): Pro
     .single()
 
   if (error) throw error
+
+  // Send notifications to other session participants (fire-and-forget)
+  if (notify) {
+    notifyCommentAdded(sessionId, data.id, player.id).catch((err) => {
+      console.error('Failed to send comment notification:', err)
+    })
+  }
+
   return data as Comment
 }
 

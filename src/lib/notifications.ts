@@ -10,7 +10,8 @@ export type NotificationType =
   | 'session_reminder'
   | 'waitlist_promoted'
   | 'session_cancelled'
-  | 'player_joined';
+  | 'player_joined'
+  | 'comment_added';
 
 interface NotifyResult {
   success: boolean;
@@ -99,6 +100,17 @@ export async function notifyPlayerJoined(
   playerId: string
 ): Promise<NotifyResult> {
   return sendNotification('player_joined', { poolId, playerId });
+}
+
+/**
+ * Notify session participants when someone adds a comment
+ */
+export async function notifyCommentAdded(
+  sessionId: string,
+  commentId: string,
+  playerId: string
+): Promise<NotifyResult> {
+  return sendNotification('comment_added', { sessionId, playerId, customMessage: commentId });
 }
 
 /**
