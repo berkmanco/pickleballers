@@ -1267,8 +1267,8 @@ async function notifyPlayerJoined(supabase: ReturnType<typeof createClient>, poo
 
   const results = { sent: 0, failed: 0, errors: [] as string[] };
 
-  // Send email to pool owner
-  if (owner.email && await shouldNotifyUser(supabase, owner.user_id, 'session_cancelled', 'email')) {
+  // Send email to pool owner (always send admin notifications)
+  if (owner.email) {
     const html = emailTemplate({
       title: "New Player Joined Your Pool! 🎉",
       preheader: `${newPlayer.name} just joined ${pool.name}`,
@@ -1297,7 +1297,7 @@ async function notifyPlayerJoined(supabase: ReturnType<typeof createClient>, poo
     }
   }
 
-  // Send SMS to pool owner
+  // Send SMS to pool owner (respect SMS preferences)
   if (!SMS_DISABLED && owner.phone && await shouldNotifyUser(supabase, owner.user_id, 'session_cancelled', 'sms')) {
     const smsMessage = `🏓 ${newPlayer.name} just joined your ${pool.name} pool! View pool: ${APP_URL}/p/${pool.slug || pool.id}`;
 
