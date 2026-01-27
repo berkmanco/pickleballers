@@ -28,27 +28,56 @@ Belong to one or more pools. Required: name, email, Venmo account.
 ### Sessions
 Proposed game date/times. Players opt themselves in.
 
-### Cost Model
+### Payment Model
 
-Each court booking requires 4 players on CourtReserve:
-- **Admin (member)**: $9 per court
-- **3 guest spots**: $16 × 3 = $48 per court
-- **Total per court**: $57
+**Pool-Splitting Model**: Total cost per court is duration-based and split among guests.
 
-Guest cost is split among ALL guests:
+#### Duration-Based Pricing
 
-| Players | Courts | Admin Pays | Guest Pool | # Guests | Per Guest |
-|---------|--------|------------|------------|----------|-----------|
-| 4       | 1      | $9         | $48        | 3        | $16.00    |
-| 5       | 1      | $9         | $48        | 4        | $12.00    |
-| 6       | 1      | $9         | $48        | 5        | $9.60     |
-| 7       | 1      | $9         | $48        | 6        | $8.00     |
-| 8       | 2      | $18        | $96        | 7        | $13.71    |
-| 9       | 2      | $18        | $96        | 8        | $12.00    |
-| 10      | 2      | $18        | $96        | 9        | $10.67    |
-| 11      | 2      | $18        | $96        | 10       | $9.60     |
+Pricing is **automatically calculated** from session duration using CourtReserve doubles rates:
 
-**Court allocation**: 4-7 players = 1 court, 8-11 players = 2 courts
+| Duration | Admin Cost | Guest Pool (3 spots) | Total Per Court |
+|----------|------------|---------------------|-----------------|
+| 30 min   | $4.50      | $24                 | $28.50          |
+| 60 min   | $9.00      | $48                 | $57.00          |
+| 90 min   | $13.50     | $72                 | $85.50          |
+| 120 min  | $18.00     | $96                 | $114.00         |
+
+**Formula:**
+- `admin_cost_per_court` = `duration_minutes` × $0.15
+- `guest_pool_per_court` = `duration_minutes` × $0.80
+
+#### Calculation
+
+```
+total_session_cost = (admin_cost_per_court + guest_pool_per_court) × courts_needed
+admin_pays = admin_cost_per_court × courts_needed
+guest_pool = guest_pool_per_court × courts_needed
+each_guest_pays = guest_pool ÷ number_of_guests
+```
+
+**Key**: Total collection is constant regardless of guest count. More guests = lower per-person cost.
+
+#### Example: 60-minute session, 1 court
+
+| Players | Courts | Admin | Guest Pool | Guests | Per Guest |
+|---------|--------|-------|------------|--------|-----------|
+| 4       | 1      | $9    | $48        | 3      | $16.00    |
+| 5       | 1      | $9    | $48        | 4      | $12.00    |
+| 6       | 1      | $9    | $48        | 5      | $9.60     |
+| 7       | 1      | $9    | $48        | 6      | $8.00     |
+
+#### Example: 90-minute session, 1 court
+
+| Players | Courts | Admin  | Guest Pool | Guests | Per Guest |
+|---------|--------|--------|------------|--------|-----------|
+| 4       | 1      | $13.50 | $72        | 3      | $24.00    |
+| 5       | 1      | $13.50 | $72        | 4      | $18.00    |
+| 6       | 1      | $13.50 | $72        | 5      | $14.40    |
+
+#### Rotation Logic
+
+You pay for **spots on the court** (4), not total attendees. If you reserve 1 court but 6 people show up, the extra 2 rotate in/out of those same 4 paid spots. They still split the cost and help everyone get a better deal.
 
 ## Key Workflows
 
@@ -180,7 +209,8 @@ supabase/
 └── seed.sql       # Local dev seed data
 
 tests/
-├── setup.ts       # Test utilities & helpers
+├── setup.ts              # Test utilities & helpers
+├── pricing.test.ts       # Duration-based pricing
 ├── notifications.test.ts
 ├── pools.test.ts
 ├── sessions.test.ts
@@ -197,15 +227,17 @@ docs/
 
 ## Testing
 
-**123 automated tests** covering core functionality:
+**160 automated tests** covering core functionality:
 
 ```bash
-npm test              # Run all tests
-npm run test:watch    # Watch mode
+npm test                # Run all tests
+npm run test:watch      # Watch mode
+npm run test:pricing    # Run pricing tests
 ```
 
 | Test Suite | Tests | Coverage |
 |------------|-------|----------|
+| `pricing.test.ts` | 17 | Duration-based pricing calculation |
 | `notifications.test.ts` | 10 | All notification types |
 | `pools.test.ts` | 12 | Pool CRUD, players, links |
 | `sessions.test.ts` | 15 | Session lifecycle |

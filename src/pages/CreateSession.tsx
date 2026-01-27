@@ -6,6 +6,26 @@ import { createSession, CreateSessionData, getSession, updateSession } from '../
 import { notifySessionCreated } from '../lib/notifications'
 import { checkCourtAvailability, calculateEndTime, AvailableCourt } from '../lib/courtreserve'
 
+/**
+ * Calculate CourtReserve pricing based on duration (doubles rate)
+ * 
+ * Pricing structure:
+ * - 30 min: $4.50 admin + $24 guest pool
+ * - 60 min: $9.00 admin + $48 guest pool
+ * - 90 min: $13.50 admin + $72 guest pool
+ * - 120 min: $18.00 admin + $96 guest pool
+ * 
+ * Formula: Rate per minute × duration
+ * - Admin: $0.15/min
+ * - Guest pool: $0.80/min (3 guests × $0.2667/min each)
+ */
+function calculateCourtReservePricing(durationMinutes: number) {
+  return {
+    admin_cost_per_court: durationMinutes * 0.15,
+    guest_pool_per_court: durationMinutes * 0.80,
+  }
+}
+
 export default function CreateSession() {
   const [searchParams] = useSearchParams()
   const { id: sessionId } = useParams<{ id: string }>()
@@ -19,18 +39,22 @@ export default function CreateSession() {
   const [isOwner, setIsOwner] = useState(false)
   const isEditMode = !!sessionId
 
+  // Initialize with 90 minute defaults (most common booking)
+  const initialDuration = 90
+  const initialPricing = calculateCourtReservePricing(initialDuration)
+  
   const [formData, setFormData] = useState<CreateSessionData>({
     pool_id: poolId || '',
     proposed_date: '',
     proposed_time: '',
-    duration_minutes: 120,
+    duration_minutes: initialDuration,
     min_players: 4,
-    max_players: 7,
+    max_players: 6,
     court_location: 'Pickle Shack',
     court_numbers: [],
-    courts_needed: 2,
-    admin_cost_per_court: 9.0,
-    guest_pool_per_court: 48.0,
+    courts_needed: 1,
+    admin_cost_per_court: initialPricing.admin_cost_per_court,
+    guest_pool_per_court: initialPricing.guest_pool_per_court,
   })
   const [courtNumbersInput, setCourtNumbersInput] = useState('')
   
@@ -322,18 +346,22 @@ export default function CreateSession() {
             <select
               id="duration_minutes"
               value={formData.duration_minutes}
-              onChange={(e) =>
+              onChange={(e) => {
+                const duration = parseInt(e.target.value)
+                const pricing = calculateCourtReservePricing(duration)
                 setFormData({
                   ...formData,
-                  duration_minutes: parseInt(e.target.value),
+                  duration_minutes: duration,
+                  admin_cost_per_court: pricing.admin_cost_per_court,
+                  guest_pool_per_court: pricing.guest_pool_per_court,
                 })
-              }
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#3CBBB1] focus:border-transparent"
             >
-              <option value={30}>30 min</option>
-              <option value={60}>60 min</option>
-              <option value={90}>90 min</option>
-              <option value={120}>120 min</option>
+              <option value={30}>30 min ($4.50 + $24 pool)</option>
+              <option value={60}>60 min ($9 + $48 pool)</option>
+              <option value={90}>90 min ($13.50 + $72 pool)</option>
+              <option value={120}>120 min ($18 + $96 pool)</option>
             </select>
           </div>
 

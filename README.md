@@ -68,12 +68,12 @@ npm test
 - Pool management (create, invite players, manage)
 - Player registration (one-time links, magic link auth)
 - Session proposals (create, view, opt-in)
-- Dynamic cost calculation
+- Duration-based cost calculation (CourtReserve pricing)
 - Payment tracking (Venmo links with hashtags)
 - Venmo auto-reconciliation (email parsing)
 - Notifications (email via Resend, SMS via Twilio)
 - PWA support (installable, offline-capable)
-- **143 automated tests**
+- **160 automated tests** (including 17 pricing tests)
 
 ### 📋 Planned
 - Delete/unlock sessions
@@ -83,23 +83,46 @@ npm test
 ## Testing
 
 ```bash
-npm test                    # Run all 123 tests
+npm test                    # Run all tests
+npm run test:pricing        # Run pricing calculation tests
 npm run test:notifications  # Run notification tests
 npm run test:payments       # Run payment tests
 npm run test:venmo-parser   # Run Venmo parser tests
 ```
 
-## Cost Model
+## Payment Model
 
-Per court: $57 ($9 admin + $48 guest pool split among guests)
+**Pool-Splitting Model**: Total cost per court is based on duration and split among guests.
 
-| Players | Courts | Per Guest |
-|---------|--------|-----------|
-| 4       | 1      | $16.00    |
-| 5       | 1      | $12.00    |
-| 6       | 1      | $9.60     |
-| 7       | 1      | $8.00     |
-| 8       | 2      | $13.71    |
+### How It Works
+
+Pricing is **automatically calculated** based on session duration (CourtReserve doubles rates):
+
+| Duration | Admin Pays | Guest Pool (3 spots) | Total Per Court |
+|----------|------------|---------------------|-----------------|
+| 30 min   | $4.50      | $24                 | $28.50          |
+| 60 min   | $9.00      | $48                 | $57.00          |
+| 90 min   | $13.50     | $72                 | $85.50          |
+| 120 min  | $18.00     | $96                 | $114.00         |
+
+**Each guest pays** = `guest_pool` × `courts_needed` ÷ `number_of_guests`
+
+### Key Insight: Fixed Court Spots with Rotation
+
+You pay for **spots on the court** (4), not total attendees. If 6 people show up but you only paid for 4 spots, the extra 2 just rotate in/out.
+
+**Example: 90-minute session (1 court)**
+- Total paid to venue: $85.50
+- Admin pays: $13.50
+- Guest pool: $72.00
+
+| Guests | Each Pays | Total Collected | Notes |
+|--------|-----------|-----------------|-------|
+| 3      | $24.00    | $85.50         | Exactly fills 4 spots |
+| 4      | $18.00    | $85.50         | 5th person rotates |
+| 5      | $14.40    | $85.50         | 6th person rotates |
+
+More guests = better deal per person (same court cost, more people splitting it).
 
 ## License
 
