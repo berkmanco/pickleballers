@@ -89,10 +89,12 @@ export async function createTestSession(
       pool_id: poolId,
       proposed_date: dateStr,
       proposed_time: '18:00',
+      duration_minutes: 60, // 60 min = $9 admin + $48 guest pool
       status: 'proposed',
       min_players: 4,
       max_players: 8,
       admin_cost_per_court: 9.00,
+      guest_pool_per_court: 48.00,
       ...overrides,
     })
     .select()
